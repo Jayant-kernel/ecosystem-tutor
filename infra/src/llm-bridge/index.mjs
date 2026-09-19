@@ -120,6 +120,7 @@ export function createHandler(deps = {}) {
       lessonMode: fields.lessonMode,
       lessonGuide: fields.lessonGuide,
       lessonFlows: fields.lessonFlows,
+      learningPath: fields.learningPath,
       lessonTask: fields.lessonTask,
       visualScene: fields.visualScene,
     };

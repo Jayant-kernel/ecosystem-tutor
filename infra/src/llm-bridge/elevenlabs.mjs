@@ -129,7 +129,7 @@ function voiceSettingsFor(env) {
     similarity_boost: clamp01(env.TTS_SIMILARITY, 0.75),
     style: clamp01(env.TTS_STYLE, 0.45),
     use_speaker_boost: true,
-    speed: clampSpeed(env.TTS_SPEED, 0.98),
+    speed: clampSpeed(env.TTS_SPEED, 0.88),
   };
 }
 

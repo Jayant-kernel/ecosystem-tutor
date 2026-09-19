@@ -34,6 +34,8 @@ export interface VoiceRequest {
     lessonGuide?: string;
     /** The lesson's flow chart, flattened to "step -> step -> step". */
     lessonFlows?: string;
+    /** Chapters available from the beginning of this course through the current lesson. */
+    learningPath?: string;
     /** The exercise the learner is currently working on. */
     lessonTask?: string;
     /** Compact semantic summary of an existing visual scene, never raw DOM or coordinates. */
@@ -103,6 +105,7 @@ export const voiceService = {
         if (request.lessonMode) form.append('lessonMode', request.lessonMode);
         if (request.lessonGuide) form.append('lessonGuide', request.lessonGuide);
         if (request.lessonFlows) form.append('lessonFlows', request.lessonFlows);
+        if (request.learningPath) form.append('learningPath', request.learningPath);
         if (request.lessonTask) form.append('lessonTask', request.lessonTask);
         if (request.visualScene) form.append('visualScene', request.visualScene);
 

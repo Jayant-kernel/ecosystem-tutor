@@ -58,8 +58,8 @@ Parameters:
     Description: Sarvam TTS sample rate.
   SarvamTtsPace:
     Type: String
-    Default: '0.98'
-    Description: Sarvam TTS pace, 0.5-2.0.
+    Default: '0.88'
+    Description: Sarvam TTS pace, 0.5-2.0. Below 1 is calmer for teaching.
   SarvamTtsTemperature:
     Type: String
     Default: '0.6'
@@ -145,7 +145,7 @@ Parameters:
     Description: TTS output format. Lower bitrate = smaller payload = less latency.
   TtsSpeed:
     Type: String
-    Default: '0.98'
+    Default: '0.88'
     Description: Speech rate, 0.7-1.2. Below 1 is slower. Lower it for a calmer tutor.
   TtsStability:
     Type: String

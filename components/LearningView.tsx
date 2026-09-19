@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion';
 import { Course, Lesson, Transcript, ConsoleOutput, TestResult, TutorToolCall, TutorToolResponse } from '../types';
 import RoadmapSidebar from './RoadmapSidebar';
 import { useCourseProgress } from '../hooks/useCourseProgress';
@@ -10,7 +11,8 @@ import ConversationPanel from './ConversationPanel';
 import CodeWorkspace from './CodeWorkspace';
 import LearningFooter from './LearningFooter';
 import PracticeView from './PracticeView';
-import VisualTutorCanvas from './visual-tutor/VisualTutorCanvas';
+// Lazy: keeps @xyflow/react (the visual tutor canvas) out of the main bundle.
+const VisualTutorCanvas = React.lazy(() => import('./visual-tutor/VisualTutorCanvas'));
 import VisualOfferCard from './visual-tutor/VisualOfferCard';
 import { validateVisualPlan, visualSceneSummary } from './visual-tutor/visualSchema';
 import { visualReducer } from './visual-tutor/visualReducer';
@@ -27,12 +29,56 @@ interface LearningViewProps {
 
 /** A direct request opens Visual Mode; tentative tutor suggestions still ask first. */
 const isDirectVisualRequest = (value: string) => /\b(?:show|make|draw|build|create|explain)\b[^.]{0,56}\b(?:visual(?:ly|isation|ization)?|flow\s*chart|flowchart|diagram|architecture|data\s*flow)\b|\b(?:flow\s*chart|flowchart|diagram|visual(?:ly|isation|ization)?)\b|फ्लो\s*चार्ट|फ्लोचार्ट|डायग्राम|विजुअल|चित्र/.test(value.toLowerCase());
+/** "This chapter" stays local; a plain flowchart request means the journey so far. */
+const isCurrentChapterVisualRequest = (value: string) => /\b(?:this|current|only)\s+(?:chapter|lesson|topic|concept|flowchart|diagram)\b|\b(?:chapter|lesson)\s+(?:only|alone)\b/.test(value.toLowerCase());
 const FALLBACK_NODE_TYPES: VisualNode['type'][] = ['client', 'gateway', 'compute', 'database', 'storage', 'service'];
+const teachingCue = (label: string, detail?: string) => `${label}: ${detail || 'the next important idea in this lesson.'}`
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 12)
+    .join(' ')
+    .slice(0, 140);
+
+const learningJourneySteps = (course: Course, currentLesson: Lesson | null) => {
+    if (!currentLesson) return [];
+    const steps: Array<{ label: string; detail: string }> = [];
+    let foundCurrentLesson = false;
+    for (let moduleIndex = 0; moduleIndex < course.modules.length && !foundCurrentLesson; moduleIndex += 1) {
+        const module = course.modules[moduleIndex];
+        for (let lessonIndex = 0; lessonIndex < module.lessons.length; lessonIndex += 1) {
+            const lesson = module.lessons[lessonIndex];
+            steps.push({
+                label: `M${moduleIndex + 1}.${lessonIndex + 1} ${lesson.title}`.slice(0, 60),
+                detail: (lesson.objectives?.[0] || `Key idea from ${lesson.title}`).slice(0, 120),
+            });
+            if (lesson.id === currentLesson.id) {
+                foundCurrentLesson = true;
+                break;
+            }
+        }
+    }
+    if (!foundCurrentLesson) return [];
+    if (steps.length <= 16) return steps;
+    const moduleSummaries: Array<{ label: string; detail: string }> = [];
+    for (let moduleIndex = 0; moduleIndex < course.modules.length; moduleIndex += 1) {
+        const module = course.modules[moduleIndex];
+        const currentIndex = module.lessons.findIndex((lesson) => lesson.id === currentLesson.id);
+        const included = currentIndex >= 0 ? currentIndex + 1 : module.lessons.length;
+        moduleSummaries.push({
+            label: `Module ${moduleIndex + 1}: ${module.title}`.slice(0, 60),
+            detail: `Chapters 1–${included}: ${module.lessons.slice(0, included).map((lesson) => lesson.title).join(', ')}`.slice(0, 120),
+        });
+        if (currentIndex >= 0) return moduleSummaries;
+    }
+    return moduleSummaries;
+};
 
 /** Guarantees a live teaching canvas even if a model offers visual mode without a plan. */
-const buildDirectVisualPlan = (lesson: Lesson | null, topic: string): VisualPlan => {
+const buildDirectVisualPlan = (lesson: Lesson | null, topic: string, journeySteps: Array<{ label: string; detail: string }> = []): VisualPlan => {
     const flow = lesson?.content.flows?.find((candidate) => candidate.steps.length >= 2);
-    const sourceSteps = flow?.steps?.slice(0, 6) || [
+    const sourceSteps = journeySteps.length >= 2 ? journeySteps.slice(0, 16) : flow?.steps?.slice(0, 6) || [
         { label: 'Starting point', detail: topic },
         { label: 'Process', detail: 'The important transformation happens here.' },
         { label: 'Result', detail: 'The learner can now see the outcome.' },
@@ -45,16 +91,35 @@ const buildDirectVisualPlan = (lesson: Lesson | null, topic: string): VisualPlan
     }));
     const edges = nodes.slice(1).map((node, index) => ({ id: `flow-${index + 1}`, from: nodes[index].id, to: node.id, label: 'then' }));
     const steps: VisualStep[] = [];
+    const detailedPlayback = nodes.length <= 10;
     nodes.forEach((node, index) => {
-        steps.push({ type: 'revealNode', target: node.id }, { type: 'focus', target: node.id }, { type: 'pulse', target: node.id }, { type: 'wait', durationMs: 1500 });
+        steps.push({ type: 'revealNode', target: node.id });
+        if (detailedPlayback) steps.push({ type: 'focus', target: node.id });
+        steps.push({ type: 'annotate', target: node.id, text: teachingCue(node.label, node.detail) });
+        if (detailedPlayback) steps.push({ type: 'pulse', target: node.id });
+        steps.push({ type: 'wait', durationMs: 3200 });
         if (index > 0) steps.push({ type: 'revealEdge', target: edges[index - 1].id });
     });
-    steps.push({ type: 'clearFocus' }, { type: 'finish' });
-    return { title: flow?.title || topic, nodes, edges, steps };
+    if (detailedPlayback) steps.push({ type: 'clearFocus' });
+    steps.push({ type: 'finish' });
+    return { title: journeySteps.length >= 2 ? `Learning journey to ${topic}`.slice(0, 100) : flow?.title || topic, nodes, edges, steps };
 };
 
-const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
-    const { progress, updateProgress, completeLesson } = useCourseProgress(course.id);
+/** Workspace 3D shuffle: one editor+console card lifts, hovers and sinks while
+ * the React Flow card rises from the back of the deck. */
+const CODE_LAYER_VARIANTS: Variants = {
+    // Hold briefly for the rim-light, lift toward the learner, then let the
+    // card deliberately recede behind the visual canvas.
+    visible: { opacity: [0, 1, 1, 1], y: [24, 16, -18, 0], scale: [0.94, 0.975, 1.016, 1], rotateX: [-8, -4, 5, 0], rotateZ: [-0.8, -0.35, 0.24, 0], pointerEvents: 'auto' },
+    hidden: { opacity: [1, 1, 1, 0.02], y: [0, 0, -42, 28], scale: [1, 1, 1.035, 0.91], rotateX: [0, 0, 12, -10], rotateZ: [0, 0, -0.65, 0.65], pointerEvents: 'none' },
+};
+const VISUAL_LAYER_VARIANTS: Variants = {
+    initial: { opacity: 0.12, y: 34, scale: 0.925, rotateX: 10, rotateZ: 0.55 },
+    animate: { opacity: [0.12, 0.22, 0.84, 1], y: [34, 28, -10, 0], scale: [0.925, 0.925, 1.02, 1], rotateX: [10, 9, -4, 0], rotateZ: [0.55, 0.45, -0.2, 0] },
+    exit: { opacity: [1, 1, 0.82, 0], y: [0, -10, 26, 34], scale: [1, 1.02, 0.94, 0.925], rotateX: [0, 5, -8, -10], rotateZ: [0, 0.22, -0.42, -0.55] },
+};
+
+const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {    const { progress, updateProgress, completeLesson } = useCourseProgress(course.id);
     const { startTracking, stopTracking } = useLearningActivity();
     const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
     const [isCompleting, setIsCompleting] = useState(false);
@@ -316,6 +381,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
         // Tool calls arrive just after the transcript, so this uses the learner's
         // actual words rather than trusting the model to label its own intent.
         const openVisualImmediately = isDirectVisualRequest(latestLearnerRequestRef.current);
+        const wantsLearningJourney = openVisualImmediately && !isCurrentChapterVisualRequest(latestLearnerRequestRef.current);
         const needsSettledCode = functionCalls.some((fc) =>
             fc.name === 'executeCode' ||
             (fc.name === 'controlApp' && (fc.args?.action as string) === 'run_code')
@@ -385,7 +451,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
                     const topic = typeof fc.args?.topic === 'string' ? fc.args.topic.trim().slice(0, 100) : 'this concept';
                     const reason = typeof fc.args?.reason === 'string' ? fc.args.reason.trim().slice(0, 160) : undefined;
                     if (openVisualImmediately) {
-                        const fallbackPlan = buildDirectVisualPlan(currentLesson, topic || 'this concept');
+                        const fallbackPlan = buildDirectVisualPlan(currentLesson, topic || 'this concept', wantsLearningJourney ? learningJourneySteps(course, currentLesson) : []);
                         setPendingVisualPlan(fallbackPlan);
                         setVisualPlan(fallbackPlan);
                         setVisualOffer(null);
@@ -401,12 +467,18 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
                         responses.push({ id: fc.id, name: fc.name, response: { error: checked.error } });
                         break;
                     }
-                    setPendingVisualPlan(checked.data);
+                    // A plain direct request is deliberately deterministic: it
+                    // maps every chapter the learner has reached, even if an
+                    // older hosted backend returns a current-lesson-only plan.
+                    const plan = wantsLearningJourney
+                        ? buildDirectVisualPlan(currentLesson, currentLesson?.title || checked.data.title, learningJourneySteps(course, currentLesson))
+                        : checked.data;
+                    setPendingVisualPlan(plan);
                     // Direct requests never wait behind the offer card. That lets phrases
                     // like "make a flow chart" transition the editor straight into the
                     // live canvas while tentative suggestions still preserve learner choice.
                     if (!offerCall || openVisualImmediately) {
-                        setVisualPlan(checked.data);
+                        setVisualPlan(plan);
                         setVisualOffer(null);
                         setFollowUpVisualSteps([]);
                         setWorkspaceMode('visual');
@@ -426,7 +498,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
             }
         }
         return responses;
-    }, [applyHighlight, applyHighlightLines, clearHighlight, clearHighlightTimers, currentLesson, handleRunCode, handleResetCode, handleCompleteLesson, visualPlan, visualScene.activeStep]);
+    }, [applyHighlight, applyHighlightLines, clearHighlight, clearHighlightTimers, course, currentLesson, handleRunCode, handleResetCode, handleCompleteLesson, visualPlan, visualScene.activeStep]);
 
     const onStreamMessage = useCallback((newTranscript: Transcript) => {
         latestLearnerRequestRef.current = newTranscript.user || '';
@@ -464,13 +536,15 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
         toggleHandsFree,
         startSession,
         stopSession,
+        requestStop,
+        isStopPending,
         toggleMute,
         sessionError,
         ensureSessionId,
         pushHistory,
         resetConversation,
         playExternalAudio
-    } = useVoiceTutor(onStreamMessage, handleToolCall, progress, currentLesson, editorCodeRef, course.title, visualSummaryRef);
+    } = useVoiceTutor(onStreamMessage, handleToolCall, progress, currentLesson, editorCodeRef, course.title, visualSummaryRef, course);
 
     // Parent module of the open chapter (for the tutor's greeting).
     const currentModule = useMemo(() => {
@@ -571,6 +645,53 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
         setWorkspaceMode('visual');
     };
 
+    // --- Visual/code workspace transition ----------------------------------
+    // The hidden code workspace stays mounted (Monaco content, console output
+    // and tabs preserved) but is removed from tab order and assistive tech.
+    // `inert` is set as a DOM property so this works on React 18 as well.
+    const reduceMotion = useReducedMotion();
+    const rightPaneRef = useRef<HTMLDivElement | null>(null);
+    const codeLayerRef = useRef<HTMLDivElement | null>(null);
+    const transition = { duration: reduceMotion ? 0 : 1.45, times: [0, 0.2, 0.66, 1], ease: 'easeInOut' as const };
+    useEffect(() => {
+        const el = codeLayerRef.current as (HTMLDivElement & { inert?: boolean }) | null;
+        if (el) el.inert = showVisual;
+    }, [showVisual]);
+
+    // Move focus across the transition: into the canvas on open, back to the
+    // workspace switch on close. Runs only on actual transitions (never on
+    // mount, so ordinary page loads keep their natural focus). The canvas
+    // chunk loads lazily, so retry until the target exists (or give up
+    // quietly). Focus moves at most once so later user navigation is never
+    // yanked back.
+    const prevShowVisualRef = useRef<boolean | null>(null);
+    useEffect(() => {
+        const pane = rightPaneRef.current;
+        const transitioned = prevShowVisualRef.current !== null && prevShowVisualRef.current !== showVisual;
+        prevShowVisualRef.current = showVisual;
+        if (!pane || !transitioned) return;
+        const query = () => showVisual
+            ? pane.querySelector<HTMLElement>('.visual-tutor-canvas__close') ??
+              pane.querySelector<HTMLElement>('[data-visual-canvas]')
+            : pane.querySelector<HTMLElement>('.visual-workspace-switch [role="tab"]');
+        let done = false;
+        const tryFocus = () => {
+            if (done) return true;
+            const target = query();
+            if (!target) return false;
+            target.focus({ preventScroll: true });
+            done = true;
+            return true;
+        };
+        if (tryFocus()) return;
+        let attempts = 0;
+        const timer = window.setInterval(() => {
+            attempts += 1;
+            if (tryFocus() || attempts >= 12) window.clearInterval(timer);
+        }, reduceMotion ? 100 : 250);
+        return () => window.clearInterval(timer);
+    }, [showVisual, reduceMotion]);
+
     if (practiceModule?.practice) {
         return (
             <PracticeView
@@ -629,6 +750,8 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
                                 toggleHandsFree={toggleHandsFree}
                                 startSession={startSession}
                                 stopSession={stopSession}
+                                requestStop={requestStop}
+                                isStopPending={isStopPending}
                                 toggleMute={toggleMute}
                                 transcript={transcript}
                                 sessionError={sessionError}
@@ -639,12 +762,45 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => {
                         </div>
                     </div>
                     {(!isTheory || showVisual) && (
-                        <div className="flex-1 md:h-full min-h-0 animate-fade-in-up delay-100 md:col-span-3 relative">
+                        <div ref={rightPaneRef} className="workspace-card-deck flex-1 md:h-full min-h-0 animate-fade-in-up delay-100 md:col-span-3 relative">
                             {!isTheory && <>
                                 {visualPlan && <div className="visual-workspace-switch" role="tablist"><button role="tab" aria-selected={workspaceMode === 'code'} onClick={() => setWorkspaceMode('code')}>Code</button><button role="tab" aria-selected={workspaceMode === 'visual'} onClick={() => setWorkspaceMode('visual')}>Visual</button></div>}
-                                <div className={`absolute inset-0 transition-all duration-500 ${showVisual ? 'opacity-0 pointer-events-none translate-y-2' : 'opacity-100'}`}><CodeWorkspace code={editorCode} onCodeChange={handleCodeChange} output={consoleOutput} exercises={exercises} onRunTests={handleRunTests} onRunCode={handleRunCode} onResetCode={handleResetCode} highlightLines={highlightedLines} onMountEditor={handleMountEditor} consoleTabSignal={consoleTabSignal} tutorFocusLine={tutorFocusLine} tutorFocusLabel={tutorFocusLine ? `Explaining line ${tutorFocusLine}` : undefined} /></div>
+                                {/* Always mounted: Monaco content, console output and tabs survive visual mode. */}
+                                <motion.div
+                                    ref={codeLayerRef}
+                                    data-code-layer
+                                    className="absolute inset-0"
+                                    style={{ transformPerspective: 1400, transformStyle: 'preserve-3d', transformOrigin: '50% 44%', zIndex: 2 }}
+                                    initial={false}
+                                    animate={showVisual ? 'hidden' : 'visible'}
+                                    variants={CODE_LAYER_VARIANTS}
+                                    transition={transition}
+                                    aria-hidden={showVisual || undefined}
+                                >
+                                    <div className={`workspace-card workspace-card--code${showVisual ? ' is-shuffling-out' : ''}`}>
+                                        <CodeWorkspace code={editorCode} onCodeChange={handleCodeChange} output={consoleOutput} exercises={exercises} onRunTests={handleRunTests} onRunCode={handleRunCode} onResetCode={handleResetCode} highlightLines={highlightedLines} onMountEditor={handleMountEditor} consoleTabSignal={consoleTabSignal} tutorFocusLine={tutorFocusLine} tutorFocusLabel={tutorFocusLine ? `Explaining line ${tutorFocusLine}` : undefined} />
+                                    </div>
+                                </motion.div>
                             </>}
-                            {showVisual && visualPlan && <div className="absolute inset-0 animate-fade-in"><VisualTutorCanvas plan={visualPlan} followUpSteps={followUpVisualSteps} onClose={() => setWorkspaceMode('code')} onSceneChange={setVisualScene} /></div>}
+                            <AnimatePresence>
+                                {showVisual && visualPlan && (
+                                    <motion.div
+                                        key="visual-canvas"
+                                        data-visual-layer
+                                        className="absolute inset-0"
+                                        style={{ transformPerspective: 1400, transformStyle: 'preserve-3d', transformOrigin: '50% 44%', zIndex: 1 }}
+                                        variants={VISUAL_LAYER_VARIANTS}
+                                        initial="initial"
+                                        animate="animate"
+                                        exit="exit"
+                                        transition={transition}
+                                    >
+                                        <div className="workspace-card workspace-card--visual">
+                                            <Suspense fallback={null}><VisualTutorCanvas plan={visualPlan} followUpSteps={followUpVisualSteps} onClose={() => setWorkspaceMode('code')} onSceneChange={setVisualScene} /></Suspense>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                             {visualOffer && <div className="absolute inset-x-3 bottom-3 z-30"><VisualOfferCard topic={visualOffer.topic} reason={visualOffer.reason} onAccept={acceptVisualOffer} onDismiss={() => setVisualOffer(null)} /></div>}
                         </div>
                     )}

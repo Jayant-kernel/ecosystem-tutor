@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Lesson, Progress, Transcript, TutorToolCall, TutorToolResponse } from '../types';
+import { Course, Lesson, Progress, Transcript, TutorToolCall, TutorToolResponse } from '../types';
 import { voiceService, base64ToBlob } from '../services/voiceService';
 import { audioLevels, resetAudioLevels, MIC_REFERENCE, SPEAKER_REFERENCE } from '../utils/audioLevels';
 
@@ -43,6 +43,25 @@ const lessonFlowsText = (lesson: Lesson | null): string | undefined => {
     .join('\n');
 };
 
+/** A compact curriculum map from lesson one through the learner's current chapter. */
+const learningPathText = (course: Course | undefined, currentLesson: Lesson | null): string | undefined => {
+  if (!course || !currentLesson) return undefined;
+  const entries: string[] = [];
+  for (let moduleIndex = 0; moduleIndex < course.modules.length; moduleIndex += 1) {
+    const module = course.modules[moduleIndex];
+    for (let lessonIndex = 0; lessonIndex < module.lessons.length; lessonIndex += 1) {
+      const lesson = module.lessons[lessonIndex];
+      const objective = lesson.objectives?.[0]?.replace(/\s+/g, ' ').trim();
+      entries.push(`M${moduleIndex + 1} L${lessonIndex + 1}: ${lesson.title}${objective ? ` — ${objective}` : ''}`);
+      if (lesson.id === currentLesson.id) return entries.join('\n');
+    }
+  }
+  return undefined;
+};
+
+/** A direct request is a learner UI command, even if a hosted model misses its tool call. */
+const isDirectVisualRequest = (value: string) => /\b(?:show|make|draw|build|create|explain)\b[^.]{0,56}\b(?:visual(?:ly|isation|ization)?|flow\s*chart|flowchart|diagram|architecture|data\s*flow)\b|\b(?:flow\s*chart|flowchart|diagram|visual(?:ly|isation|ization)?)\b|फ्लो\s*चार्ट|फ्लोचार्ट|डायग्राम|विजुअल|चित्र/.test(value.toLowerCase());
+
 /**
  * Custom voice pipeline (no ElevenLabs Conversational AI Agent):
  *
@@ -60,6 +79,7 @@ export const useVoiceTutor = (
   editorCodeRef?: React.MutableRefObject<string>,
   courseTitle?: string,
   visualSceneRef?: React.MutableRefObject<string>,
+  course?: Course,
 ) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -67,6 +87,7 @@ export const useVoiceTutor = (
   const [isMuted, setIsMuted] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [handsFree, setHandsFree] = useState(true);
+  const [isStopPending, setIsStopPending] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -77,6 +98,9 @@ export const useVoiceTutor = (
   const audioContextRef = useRef<AudioContext | null>(null);
   const finishPlaybackRef = useRef<(() => void) | null>(null);
   const introPlayedRef = useRef<string | null>(null);
+  // Graceful stop: finish the turn in flight, then end the session.
+  const stopRequestedRef = useRef(false);
+  const discardRecordingRef = useRef(false);
 
   // Hands-free (voice activity) plumbing.
   const handsFreeRef = useRef(handsFree);
@@ -298,9 +322,10 @@ export const useVoiceTutor = (
     lessonMode: currentLesson?.mode,
     lessonGuide: clip(currentLesson?.content?.explanations?.join('\n\n'), 3000),
     lessonFlows: clip(lessonFlowsText(currentLesson), 1200),
+    learningPath: clip(learningPathText(course, currentLesson), 1800),
     lessonTask: clip(currentLesson?.content?.exercises?.[0]?.prompt, 800),
     visualScene: clip(visualSceneRef?.current, 1200),
-  }), [courseTitle, currentLesson, progress.aiMemory, visualSceneRef]);
+  }), [course, courseTitle, currentLesson, progress.aiMemory, visualSceneRef]);
 
   const ensureSession = useCallback(async () => {
     if (!sessionIdRef.current) {
@@ -342,14 +367,28 @@ export const useVoiceTutor = (
         ].slice(-MAX_HISTORY_TURNS);
       }
 
-      if (result.toolCalls?.length) {
+      const toolCalls = result.toolCalls || [];
+      if (toolCalls.length) {
         await onToolCallRef.current(
-          result.toolCalls.map((call, index) => ({
+          toolCalls.map((call, index) => ({
             id: `voice-tool-${index}`,
             name: call.name,
             args: call.args || {},
           })),
         );
+      }
+
+      // The live backend normally supplies a presentVisualExplanation call.
+      // This client fallback keeps direct requests working during a rolling
+      // backend deployment or if an LLM replies in text without that call.
+      const hasVisualCall = toolCalls.some((call) =>
+        call?.name === 'presentVisualExplanation' || call?.name === 'offerVisualExplanation');
+      if (isDirectVisualRequest(result.transcript) && !hasVisualCall) {
+        await onToolCallRef.current([{
+          id: 'voice-visual-fallback',
+          name: 'offerVisualExplanation',
+          args: { topic: lessonContext().lessonTitle || 'this concept' },
+        }]);
       }
 
       if (result.audio) {
@@ -358,16 +397,23 @@ export const useVoiceTutor = (
 
       // Hands-free: as soon as the tutor stops speaking, hand the microphone
       // straight back. Only when the learner actually said something, so a
-      // silent room cannot loop "I didn't catch that" forever.
-      if (handsFreeRef.current && !unmountedRef.current && result.transcript) {
+      // silent room cannot loop "I didn't catch that" forever. A pending stop
+      // ends the session after this turn instead of reopening the mic.
+      if (!stopRequestedRef.current && handsFreeRef.current && !unmountedRef.current && result.transcript) {
         await beginRecordingRef.current();
       }
     } catch (error: any) {
       setSessionError(error?.message || 'Voice request failed');
     } finally {
       setIsProcessing(false);
+      if (stopRequestedRef.current) {
+        stopRequestedRef.current = false;
+        setIsStopPending(false);
+        releaseStream();
+        setIsRecording(false);
+      }
     }
-  }, [editorCodeRef, ensureSession, lessonContext, playAudio]);
+  }, [editorCodeRef, ensureSession, lessonContext, playAudio, releaseStream]);
 
   /** The tutor opens the conversation, then hands over the microphone. */
   const playIntro = useCallback(async () => {
@@ -420,6 +466,11 @@ export const useVoiceTutor = (
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         chunksRef.current = [];
+        // A stop tapped mid-recording drops that turn rather than sending it.
+        if (discardRecordingRef.current) {
+          discardRecordingRef.current = false;
+          return;
+        }
         void sendRecording(blob);
       };
 
@@ -455,8 +506,18 @@ export const useVoiceTutor = (
       await playIntro();
     }
 
+    // A stop tapped during the spoken intro ends the session instead of
+    // opening the microphone.
+    if (stopRequestedRef.current) {
+      stopRequestedRef.current = false;
+      setIsStopPending(false);
+      releaseStream();
+      setIsRecording(false);
+      return;
+    }
+
     await beginRecording();
-  }, [beginRecording, currentLesson?.id, isProcessing, isRecording, playIntro]);
+  }, [beginRecording, currentLesson?.id, isProcessing, isRecording, playIntro, releaseStream]);
 
   const stopSession = useCallback(() => {
     stopVad();
@@ -470,6 +531,22 @@ export const useVoiceTutor = (
 
   // Let the voice-activity watcher end the turn through the normal stop path.
   useEffect(() => { stopSessionRef.current = stopSession; }, [stopSession]);
+
+  /**
+   * Graceful stop. Any in-flight turn (thinking/speaking) finishes first, then
+   * the session ends instead of handing the microphone back. An idle recording
+   * is dropped immediately, so stopping never plays a half-finished thought.
+   */
+  const requestStop = useCallback(() => {
+    if (stopRequestedRef.current || isStopPending) return;
+    if (isProcessing || isPlaying) {
+      stopRequestedRef.current = true;
+      setIsStopPending(true);
+      return;
+    }
+    discardRecordingRef.current = true;
+    stopSession();
+  }, [isProcessing, isPlaying, isStopPending, stopSession]);
 
   const toggleHandsFree = useCallback(() => {
     const next = !handsFree;
@@ -518,6 +595,8 @@ export const useVoiceTutor = (
     toggleHandsFree,
     startSession,
     stopSession,
+    requestStop,
+    isStopPending,
     toggleMute,
     sessionError,
     ensureSessionId,

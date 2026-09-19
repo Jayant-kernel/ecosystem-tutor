@@ -18,6 +18,8 @@ interface ConversationPanelProps {
     toggleHandsFree: () => void;
     startSession: () => void;
     stopSession: () => void;
+    requestStop: () => void;
+    isStopPending: boolean;
     toggleMute: () => void;
     transcript: Transcript;
     sessionError: string | null;
@@ -36,6 +38,8 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
     toggleHandsFree,
     startSession,
     stopSession,
+    requestStop,
+    isStopPending,
     toggleMute,
     transcript,
     sessionError,
@@ -85,9 +89,11 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isSessionActive, toggleMute]);
 
+    const canStop = isSessionActive || isConnecting || isSpeaking || isStopPending;
+
     const handleMicClick = () => {
-        if (isSessionActive) {
-            stopSession();
+        if (canStop) {
+            requestStop();
         } else {
             startSession();
         }
@@ -107,6 +113,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
     const getStatusText = () => {
         if (sessionError) return sessionError;
+        if (isStopPending) return 'Finishing this turn, then stopping...';
         if (isConnecting) return 'Connecting...';
         if (isSessionActive) {
             if (isMuted) return 'Mic Muted (Alt+M)';
@@ -247,6 +254,20 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
                                 </p>
 
                                 <div className="flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={requestStop}
+                                        disabled={!canStop}
+                                        title="Stop after the tutor finishes this turn"
+                                        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 ${
+                                            isStopPending
+                                                ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                                                : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-red-500/10 hover:text-red-300'
+                                        }`}
+                                    >
+                                        <i className={`fas ${isStopPending ? 'fa-spinner fa-spin' : 'fa-stop'}`}></i>
+                                        {isStopPending ? 'Stopping' : 'Stop'}
+                                    </button>
+
                                     <button
                                         onClick={toggleMute}
                                         disabled={!isSessionActive}

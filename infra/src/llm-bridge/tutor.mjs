@@ -4,7 +4,7 @@ import { createBedrockProvider } from './providers/bedrock.mjs';
 import { createGrokProvider } from './providers/grok.mjs';
 import { createGroqProvider } from './providers/groq.mjs';
 import { createOpenAIProvider } from './providers/openai.mjs';
-import { sanitizeVisualToolCalls } from './visual.mjs';
+import { ensureDirectVisualPlan, sanitizeVisualToolCalls } from './visual.mjs';
 import { UpstreamError } from './errors.mjs';
 
 export { buildSystemPrompt, selectTools, TOOLS, THEORY_TOOLS } from './tools.mjs';
@@ -92,5 +92,6 @@ export async function generateTutorResponse({
     context,
     tools: selectTools(context.lessonMode),
   });
-  return { ...result, toolCalls: sanitizeVisualToolCalls(result.toolCalls) };
+  const safeToolCalls = sanitizeVisualToolCalls(result.toolCalls);
+  return { ...result, toolCalls: ensureDirectVisualPlan(safeToolCalls, transcript, context) };
 }

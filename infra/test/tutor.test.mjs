@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProvider, generateTutorResponse, buildSystemPrompt } from '../src/llm-bridge/tutor.mjs';
 import { normalizeHistory, selectTools, TOOLS, THEORY_TOOLS, toolResultText } from '../src/llm-bridge/tools.mjs';
-import { sanitizeVisualToolCalls, validateVisualPlan } from '../src/llm-bridge/visual.mjs';
+import { buildDirectVisualPlan, ensureDirectVisualPlan, sanitizeVisualToolCalls, validateVisualPlan } from '../src/llm-bridge/visual.mjs';
 import { buildIntro } from '../src/llm-bridge/index.mjs';
 
 test('createProvider defaults to openai and honours LLM_PROVIDER', () => {
@@ -262,10 +262,72 @@ test('visual plans validate semantic ids and bounded playback data', () => {
   assert.equal(validateVisualPlan({ ...plan, nodes: Array.from({ length: 17 }, (_, i) => ({ id: `node-${i}`, label: 'Node', type: 'client' })) }), false);
 });
 
+test('visual validation matches the frontend schema (durations, targets)', () => {
+  const plan = { title: 'Flow', nodes: [{ id: 'a', label: 'A', type: 'client' }, { id: 'b', label: 'B', type: 'compute' }], edges: [{ id: 'ab', from: 'a', to: 'b' }], steps: [{ type: 'revealNode', target: 'a' }] };
+  // Fractional durations are accepted, matching frontend validateVisualPlan.
+  assert.equal(validateVisualPlan({ ...plan, steps: [{ type: 'wait', durationMs: 1200.5 }] }), true);
+  // Optional targets, when present, must still be well-formed ids.
+  assert.equal(validateVisualPlan({ ...plan, steps: [{ type: 'wait', target: 'BAD ID' }] }), false);
+  assert.equal(validateVisualPlan({ ...plan, steps: [{ type: 'wait', durationMs: -1 }] }), false);
+  assert.equal(validateVisualPlan({ ...plan, steps: [{ type: 'wait', durationMs: 6001 }] }), false);
+});
+
 test('invalid visual calls are removed before they reach the client', () => {
   const valid = { title: 'Flow', nodes: [{ id: 'browser', label: 'Browser', type: 'client' }], edges: [], steps: [{ type: 'revealNode', target: 'browser' }] };
   const calls = sanitizeVisualToolCalls([{ name: 'presentVisualExplanation', args: valid }, { name: 'presentVisualExplanation', args: { ...valid, nodes: [{ id: 'BAD id', label: 'x', type: 'client' }] } }, { name: 'writeCode', args: { code: 'x' } }]);
   assert.deepEqual(calls.map((call) => call.name), ['presentVisualExplanation', 'writeCode']);
+});
+
+test('a direct flowchart request always receives a valid lesson-derived visual plan', () => {
+  const context = {
+    lessonTitle: 'Cloud cost management',
+    lessonFlows: 'Cost lifecycle: Budget -> Monitor -> Alert -> Optimize',
+  };
+  const fallback = buildDirectVisualPlan(context);
+  assert.equal(validateVisualPlan(fallback), true);
+  assert.deepEqual(fallback.nodes.map((node) => node.label), ['Budget', 'Monitor', 'Alert', 'Optimize']);
+
+  const calls = ensureDirectVisualPlan([], 'Make me a flowchart', context);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'presentVisualExplanation');
+  assert.equal(validateVisualPlan(calls[0].args), true);
+  assert.deepEqual(ensureDirectVisualPlan(calls, 'Make me a flowchart', context), calls);
+  assert.deepEqual(ensureDirectVisualPlan([], 'Explain the budget alert', context), []);
+});
+
+test('a direct flowchart can map every chapter through the current lesson', () => {
+  const context = {
+    lessonTitle: 'IAM policies, roles and least privilege',
+    learningPath: [
+      'M1 L1: Your learning lab — Work safely in the cloud',
+      'M1 L2: HTTP and APIs — Follow one web request',
+      'M2 L1: Why cloud exists — Compare renting and buying',
+      'M3 L10: IAM policies, roles and least privilege — Grant only needed access',
+    ].join('\n'),
+  };
+  const plan = buildDirectVisualPlan(context);
+  assert.equal(validateVisualPlan(plan), true);
+  assert.equal(plan.title, 'Learning journey to IAM policies, roles and least privilege');
+  assert.deepEqual(plan.nodes.map((node) => node.label), [
+    'M1.1 Your learning lab',
+    'M1.2 HTTP and APIs',
+    'M2.1 Why cloud exists',
+    'M3.10 IAM policies, roles and least privilege',
+  ]);
+  assert.equal(plan.edges.length, 3);
+});
+
+test('a long direct journey remains valid and deliberately paced', () => {
+  const learningPath = Array.from({ length: 16 }, (_, index) =>
+    `M${Math.floor(index / 4) + 1} L${(index % 4) + 1}: Chapter ${index + 1} — One key idea.`,
+  ).join('\n');
+  const plan = buildDirectVisualPlan({ lessonTitle: 'Chapter 16', learningPath });
+
+  assert.equal(plan.nodes.length, 16);
+  assert.equal(plan.steps.length, 64);
+  assert.equal(validateVisualPlan(plan), true);
+  assert.ok(plan.steps.filter((step) => step.type === 'wait').every((step) => step.durationMs === 3200));
+  assert.equal(plan.steps.some((step) => step.type === 'pulse'), false);
 });
 
 test('buildIntro offers options instead of waiting to be asked', () => {

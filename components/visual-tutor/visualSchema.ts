@@ -47,7 +47,7 @@ export function validateVisualPlan(input: unknown): VisualValidation {
     if (!VISUAL_ACTION_TYPES.includes(value.type as never)) return { success: false, error: 'Unsupported visual action.' };
     const needsNode = ['revealNode', 'focus', 'highlightNode', 'pulse', 'annotate', 'dimOthers'].includes(value.type as string);
     const needsEdge = value.type === 'revealEdge';
-    if ((needsNode && !seen.has(value.target as string)) || (needsEdge && !edgeIds.has(value.target as string)) || (value.target !== undefined && !string(value.target, 48))) {
+    if ((needsNode && !seen.has(value.target as string)) || (needsEdge && !edgeIds.has(value.target as string)) || (value.target !== undefined && (!string(value.target, 48) || !ID.test(value.target as string)))) {
       return { success: false, error: 'Visual step refers to an unknown target.' };
     }
     if (value.text !== undefined && !string(value.text, 140)) return { success: false, error: 'Visual annotation is too long.' };

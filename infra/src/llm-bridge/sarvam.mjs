@@ -64,7 +64,7 @@ function sarvamPayload(text, env) {
     language_code: env.SARVAM_TTS_LANGUAGE_CODE || DEFAULT_SARVAM_TTS_LANGUAGE_CODE,
     speaker: (env.SARVAM_TTS_SPEAKER || DEFAULT_SARVAM_TTS_SPEAKER).toLowerCase(),
     model: env.SARVAM_TTS_MODEL || DEFAULT_SARVAM_TTS_MODEL,
-    pace: numberInRange(env.SARVAM_TTS_PACE || env.TTS_SPEED, 0.98, 0.5, 2.0),
+    pace: numberInRange(env.SARVAM_TTS_PACE || env.TTS_SPEED, 0.88, 0.5, 2.0),
     speech_sample_rate: intFrom(env.SARVAM_TTS_SAMPLE_RATE, DEFAULT_SARVAM_TTS_SAMPLE_RATE),
     output_audio_codec: outputAudioCodec,
     temperature: numberInRange(env.SARVAM_TTS_TEMPERATURE, 0.6, 0.01, 2.0),

@@ -22,6 +22,8 @@ export interface VisualSceneState {
   pointerTargetId: string | null;
   dimmed: boolean;
   annotations: VisualAnnotation[];
+  /** Node currently playing a pulse animation (transient, not sticky). */
+  pulsingNodeId: string | null;
   error: string | null;
 }
 
@@ -36,5 +38,5 @@ export type VisualAction =
 
 export const EMPTY_VISUAL_SCENE: VisualSceneState = {
   status: 'idle', plan: null, activeStep: -1, visibleNodeIds: [], visibleEdgeIds: [], activeNodeId: null,
-  pointerTargetId: null, dimmed: false, annotations: [], error: null,
+  pointerTargetId: null, dimmed: false, annotations: [], pulsingNodeId: null, error: null,
 };
