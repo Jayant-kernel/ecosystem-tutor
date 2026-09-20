@@ -15,15 +15,6 @@ export function cinematicProgress(filmT: number): number {
   return smoothstep(SCATTER_START, SCATTER_END, filmT);
 }
 
-/** Central violet illumination: first sensed ~0.25, clearly purple by ~0.5. */
-export function violetGlow(p: number): number {
-  if (p <= 0) return 0;
-  if (p >= 1) return 1;
-  // Two-segment ramp: whisper (0.25→0.5) then bloom to full by 0.85.
-  if (p < 0.5) return 0.22 * smoothstep(0.25, 0.5, p);
-  return 0.22 + 0.78 * smoothstep(0.5, 0.85, p);
-}
-
 /** Fluid/nebula environment emergence (never a plain 0→1 fade of one image). */
 export function nebulaLevel(p: number): number {
   if (p <= 0.45) return 0;

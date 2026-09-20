@@ -347,6 +347,48 @@ body {
     animation: infinite-scroll 40s linear infinite;
 }
 
+/* Dark theme accent system: purple carries actions, focus, and decoration;
+   the surrounding surfaces remain genuinely black. Light-theme rules below
+   intentionally do not inherit these overrides. */
+html.dark {
+    --dark-accent-200: #ddd6fe;
+    --dark-accent-300: #c4b5fd;
+    --dark-accent-400: #a78bfa;
+    --dark-accent-500: #8b5cf6;
+    --dark-accent-600: #6d28d9;
+    --dark-accent-700: #5b21b6;
+}
+
+html.dark .text-orange-200 { color: var(--dark-accent-200) !important; }
+html.dark .text-orange-300 { color: var(--dark-accent-300) !important; }
+html.dark .text-orange-400 { color: var(--dark-accent-400) !important; }
+html.dark .text-orange-500 { color: var(--dark-accent-500) !important; }
+html.dark .text-orange-600 { color: var(--dark-accent-600) !important; }
+html.dark .bg-orange-500 { background-color: var(--dark-accent-500) !important; }
+html.dark .bg-orange-600 { background-color: var(--dark-accent-600) !important; }
+html.dark .bg-orange-500\/5 { background-color: rgb(139 92 246 / .05) !important; }
+html.dark .bg-orange-500\/10 { background-color: rgb(139 92 246 / .10) !important; }
+html.dark .bg-orange-500\/15 { background-color: rgb(139 92 246 / .15) !important; }
+html.dark .bg-orange-500\/20 { background-color: rgb(139 92 246 / .20) !important; }
+html.dark .bg-orange-600\/5 { background-color: rgb(109 40 217 / .05) !important; }
+html.dark .bg-orange-600\/10 { background-color: rgb(109 40 217 / .10) !important; }
+html.dark .border-orange-500 { border-color: var(--dark-accent-500) !important; }
+html.dark .border-orange-500\/20 { border-color: rgb(139 92 246 / .20) !important; }
+html.dark .border-orange-500\/30 { border-color: rgb(139 92 246 / .30) !important; }
+html.dark .border-orange-500\/40 { border-color: rgb(139 92 246 / .40) !important; }
+html.dark .focus\:border-orange-500\/50:focus { border-color: rgb(139 92 246 / .50) !important; }
+html.dark .focus\:ring-orange-500\/20:focus { --tw-ring-color: rgb(139 92 246 / .20) !important; }
+html.dark .from-orange-500 { --tw-gradient-from: var(--dark-accent-500) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(139 92 246 / 0) var(--tw-gradient-to-position) !important; }
+html.dark .from-orange-600 { --tw-gradient-from: var(--dark-accent-600) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(109 40 217 / 0) var(--tw-gradient-to-position) !important; }
+html.dark .to-orange-400 { --tw-gradient-to: var(--dark-accent-400) var(--tw-gradient-to-position) !important; }
+html.dark .to-orange-500 { --tw-gradient-to: var(--dark-accent-500) var(--tw-gradient-to-position) !important; }
+html.dark .to-orange-600 { --tw-gradient-to: var(--dark-accent-600) var(--tw-gradient-to-position) !important; }
+html.dark .hover\:bg-orange-500:hover { background-color: var(--dark-accent-500) !important; }
+html.dark .hover\:from-orange-500:hover { --tw-gradient-from: var(--dark-accent-500) var(--tw-gradient-from-position) !important; }
+html.dark .hover\:from-orange-600:hover { --tw-gradient-from: var(--dark-accent-600) var(--tw-gradient-from-position) !important; }
+html.dark .hover\:to-orange-400:hover { --tw-gradient-to: var(--dark-accent-400) var(--tw-gradient-to-position) !important; }
+html.dark .hover\:to-orange-700:hover { --tw-gradient-to: var(--dark-accent-700) var(--tw-gradient-to-position) !important; }
+
 /* ============================================================
    Light theme — overrides for the app's dark-first palette.
    Enabled by adding the `light` class to <html> (ThemeContext).

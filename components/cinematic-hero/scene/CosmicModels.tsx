@@ -16,9 +16,12 @@ const ASTEROIDS_URL = asteroidsGlbUrl;
 // geometry, so source-file scale changes can't shrink or blow it up), then
 // sink its center so only the curved top arc crests just below the CTA.
 const EARTH_RADIUS = 7.5;
-const EARTH_TOP_Y = -1.0;
-const EARTH_POSITION: [number, number, number] = [-14, EARTH_TOP_Y - EARTH_RADIUS, 0];
-const EARTH_ROTATION: [number, number, number] = [0.05, -0.55, 0];
+const EARTH_TOP_Y = -0.2;
+// The camera's right-hand side is -Z. A small negative Z shift moves the
+// horizon right while the upright world-Y spin keeps its rotation axis aligned
+// with the centre of the screen.
+const EARTH_POSITION: [number, number, number] = [-14, EARTH_TOP_Y - EARTH_RADIUS, -1.15];
+const EARTH_ROTATION: [number, number, number] = [0, 0, 0];
 // Whole-disc purple: multiplies the satellite diffuse so oceans + land read
 // violet while keeping texture detail.
 const EARTH_PURPLE_TINT = '#9d6bff';
@@ -31,23 +34,40 @@ interface AsteroidPlacement {
   spin: [number, number, number];
 }
 
+interface AsteroidFlight {
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  retargetAt: number;
+  speed: number;
+}
+
 // All 10 scanned rocks from the asteroids pack, arranged in the LEFT/RIGHT
 // foreground bands. The final camera looks down -X, so Z controls horizontal
 // screen placement (screen-right is -Z). Keeping the rocks 5–8 world units
 // ahead of the camera, rather than at the far horizon, gives the GLB texture
 // enough on-screen area to read while the clear central lane protects the copy.
 const ASTEROID_PLACEMENTS: AsteroidPlacement[] = [
-  { name: 'Asteroid_no_1', position: [-6.5, 2.9, 4.4], rotation: [0.3, 0.8, -0.25], radius: 1.45, spin: [0.25, 0.4, 0.1] },
-  { name: 'Asteroid_no_2', position: [-7.2, 1.3, 4.9], rotation: [0.1, 0.2, 0.4], radius: 1.05, spin: [0.3, 0.25, 0.15] },
-  { name: 'Asteroid_no_3', position: [-8.3, 0.0, 4.7], rotation: [0.5, -0.7, 0.15], radius: 1.32, spin: [0.2, 0.5, 0.12] },
-  { name: 'Asteroid_no_4', position: [-6.9, 4.0, 4.8], rotation: [-0.3, 0.6, 0.2], radius: 0.88, spin: [0.35, 0.3, 0.2] },
-  { name: 'Asteroid_no_5', position: [-8.0, -1.4, 4.5], rotation: [0.6, 0.1, -0.4], radius: 1.18, spin: [0.22, 0.38, 0.14] },
-  { name: 'Asteroid_no_6', position: [-8.7, 4.6, 4.1], rotation: [-0.2, 0.3, 0.5], radius: 0.95, spin: [0.28, 0.45, 0.1] },
-  { name: 'Asteroid_no_7', position: [-6.8, 3.0, -4.5], rotation: [0.2, -0.4, 0.3], radius: 0.78, spin: [0.32, 0.28, 0.18] },
-  { name: 'Asteroid_no_8', position: [-8.1, 1.2, -4.8], rotation: [-0.4, -0.2, 0.1], radius: 1.12, spin: [0.18, 0.35, 0.12] },
-  { name: 'Asteroid_no_9', position: [-7.5, 4.5, -4.2], rotation: [0.4, 1.1, -0.35], radius: 0.86, spin: [0.4, 0.32, 0.16] },
-  { name: 'Asteroid_no_10', position: [-8.9, -0.4, -4.6], rotation: [0.7, 0.4, 0.0], radius: 1.0, spin: [0.26, 0.42, 0.2] },
+  { name: 'Asteroid_no_1', position: [-6.5, 2.9, 4.4], rotation: [0.3, 0.8, -0.25], radius: 0.52, spin: [0.25, 0.4, 0.1] },
+  { name: 'Asteroid_no_2', position: [-7.2, 1.3, 4.9], rotation: [0.1, 0.2, 0.4], radius: 0.38, spin: [0.3, 0.25, 0.15] },
+  { name: 'Asteroid_no_3', position: [-8.3, 0.0, 4.7], rotation: [0.5, -0.7, 0.15], radius: 0.46, spin: [0.2, 0.5, 0.12] },
+  { name: 'Asteroid_no_4', position: [-6.9, 4.0, 4.8], rotation: [-0.3, 0.6, 0.2], radius: 0.32, spin: [0.35, 0.3, 0.2] },
+  { name: 'Asteroid_no_5', position: [-8.0, -1.4, 4.5], rotation: [0.6, 0.1, -0.4], radius: 0.42, spin: [0.22, 0.38, 0.14] },
+  { name: 'Asteroid_no_6', position: [-8.7, 4.6, 4.1], rotation: [-0.2, 0.3, 0.5], radius: 0.34, spin: [0.28, 0.45, 0.1] },
+  { name: 'Asteroid_no_7', position: [-6.8, 3.0, -4.5], rotation: [0.2, -0.4, 0.3], radius: 0.3, spin: [0.32, 0.28, 0.18] },
+  { name: 'Asteroid_no_8', position: [-8.1, 1.2, -4.8], rotation: [-0.4, -0.2, 0.1], radius: 0.4, spin: [0.18, 0.35, 0.12] },
+  { name: 'Asteroid_no_9', position: [-7.5, 4.5, -4.2], rotation: [0.4, 1.1, -0.35], radius: 0.32, spin: [0.4, 0.32, 0.16] },
+  { name: 'Asteroid_no_10', position: [-8.9, -0.4, -4.6], rotation: [0.7, 0.4, 0.0], radius: 0.36, spin: [0.26, 0.42, 0.2] },
 ];
+
+function randomFlightTarget(): THREE.Vector3 {
+  // The wide Z range lets rocks cross the full frame. Varying depth and height
+  // prevents them from looking like a flat, synchronized particle layer.
+  return new THREE.Vector3(
+    -9 + Math.random() * 3.2,
+    -1.9 + Math.random() * 6.8,
+    -5.8 + Math.random() * 11.6,
+  );
+}
 
 /** Scale any model so its largest dimension fits the target radius, centered
  * on the origin. Makes placement immune to source-file unit/scale changes. */
@@ -134,8 +154,8 @@ export default function CosmicModels(): JSX.Element {
   const rootRef = useRef<THREE.Group | null>(null);
   const earthRef = useRef<THREE.Group | null>(null);
   const asteroidRefs = useRef<Array<THREE.Group | null>>([]);
+  const asteroidFlightsRef = useRef<AsteroidFlight[]>([]);
   const starsMaterialRef = useRef<THREE.PointsMaterial | null>(null);
-  const purpleLightRef = useRef<THREE.PointLight | null>(null);
   const asteroidFillRef = useRef<THREE.DirectionalLight | null>(null);
   const [earthData, setEarthData] = useState<{ earth: GLTF; texture: THREE.Texture | null } | null>(null);
   const [rockData, setRockData] = useState<GLTF | null>(null);
@@ -260,7 +280,7 @@ export default function CosmicModels(): JSX.Element {
     }
   }, [rockData, asteroids]);
 
-  useFrame((_, rawDelta) => {
+  useFrame((state, rawDelta) => {
     const delta = Math.min(Math.max(rawDelta, 0), 0.05);
     const level = smoothstep(0.62, 0.86, filmDriver.currentT);
     const root = rootRef.current;
@@ -270,7 +290,6 @@ export default function CosmicModels(): JSX.Element {
       root.scale.setScalar(scale);
     }
     if (starsMaterialRef.current) starsMaterialRef.current.opacity = 0.72 * level;
-    if (purpleLightRef.current) purpleLightRef.current.intensity = 8 * level;
     if (asteroidFillRef.current) asteroidFillRef.current.intensity = 2.1 * level;
     // Continuous 3D spin for every asteroid + a slow Earth rotation.
     if (root?.visible) {
@@ -278,6 +297,32 @@ export default function CosmicModels(): JSX.Element {
       asteroids.forEach((asteroid, index) => {
         const group = asteroidRefs.current[index];
         if (!group) return;
+        const time = state.clock.getElapsedTime();
+        const arrival = smoothstep(0.56 + index * 0.02, 0.86 + index * 0.01, filmDriver.currentT);
+        const entrySide = index % 2 === 0 ? 1 : -1;
+        let flight = asteroidFlightsRef.current[index];
+        if (!flight) {
+          const initialTarget = randomFlightTarget();
+          flight = {
+            position: initialTarget.clone(),
+            target: initialTarget,
+            retargetAt: time + 5 + Math.random() * 7,
+            speed: 0.13 + Math.random() * 0.05,
+          };
+          asteroidFlightsRef.current[index] = flight;
+        }
+        if (time >= flight.retargetAt) {
+          flight.target.copy(randomFlightTarget());
+          // Every rock picks a different slow interval, so direction changes
+          // never happen together and the field stays naturally erratic.
+          flight.retargetAt = time + 5 + Math.random() * 9;
+          flight.speed = 0.13 + Math.random() * 0.05;
+        }
+        flight.position.lerp(flight.target, 1 - Math.exp(-delta * flight.speed));
+        group.position.x = THREE.MathUtils.lerp(-5.2, flight.position.x, arrival);
+        group.position.y = THREE.MathUtils.lerp(asteroid.position[1] + entrySide * 1.1, flight.position.y, arrival);
+        group.position.z = THREE.MathUtils.lerp(entrySide * 12, flight.position.z, arrival);
+        group.scale.setScalar(arrival);
         group.rotation.x += delta * asteroid.spin[0];
         group.rotation.y += delta * asteroid.spin[1];
         group.rotation.z += delta * asteroid.spin[2];
@@ -319,7 +364,6 @@ export default function CosmicModels(): JSX.Element {
           blending={THREE.AdditiveBlending}
         />
       </points>
-      <pointLight ref={purpleLightRef} position={[-12, 4, 0]} color="#9d6bff" distance={40} intensity={0} />
       {/* The source GLB uses dark, rough PBR stone. A dedicated cool key keeps
           its craters visible over the dark nebula without brightening the copy. */}
       <directionalLight ref={asteroidFillRef} position={[-3, 7, 5]} color="#d9c7ff" intensity={0} />

@@ -1,5 +1,5 @@
 /**
- * Lightweight 2D-canvas purple nebula. No WebGL, no dependencies, no GLSL:
+ * Lightweight 2D-canvas near-black nebula. No WebGL, no dependencies, no GLSL:
  * layered radial-gradient blobs composited additively, drifting on slow
  * Lissajous paths, revealed through an expanding radial mask so the
  * environment EMERGES from the center instead of fading in as one image.
@@ -48,16 +48,14 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// Deep, dark-first palette: most blobs are near-black violet so luminous
-// regions read as light inside darkness, not as a purple wash.
+// Deep black palette: enough cool separation for depth, without a coloured
+// bloom behind the hero copy or the asteroid GLB.
 const PALETTE: Array<{ color: string; alpha: number }> = [
-  { color: '#150426', alpha: 0.6 },
-  { color: '#1a0530', alpha: 0.55 },
-  { color: '#2a0a4a', alpha: 0.5 },
-  { color: '#3b0f63', alpha: 0.42 },
-  { color: '#5b21b6', alpha: 0.34 },
-  { color: '#7c3aed', alpha: 0.26 },
-  { color: '#a855f7', alpha: 0.18 },
+  { color: '#020205', alpha: 0.7 },
+  { color: '#05050a', alpha: 0.58 },
+  { color: '#080814', alpha: 0.48 },
+  { color: '#0b0b1a', alpha: 0.34 },
+  { color: '#111124', alpha: 0.22 },
 ];
 
 const BLOB_COUNT = 14;
@@ -95,12 +93,6 @@ export class NebulaRenderer {
         rotation: rnd() * Math.PI,
       });
     }
-    // One tiny white-hot heart, always central.
-    this.blobs.push({
-      bx: 0.5, by: 0.44, radius: 0.07,
-      ax: 0.008, ay: 0.008, sx: 0.06, sy: 0.05, phase: 1.3,
-      color: '#ddd6fe', alpha: 0.5, stretch: 1.4, rotation: 0.6,
-    });
     // A stable star field feels much more like deep space than random dots.
     // Keep the reading ellipse clear, then give just a few stars a restrained
     // cross flare so the result stays elegant rather than game-like.
