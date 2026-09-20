@@ -7,6 +7,8 @@ interface GuidedTourCardProps {
   totalSteps: number;
   isLast: boolean;
   canGoBack: boolean;
+  /** 'click' steps require the real target interaction — Next is replaced. */
+  mode: 'next' | 'click';
   reducedMotion: boolean;
   nextButtonRef: React.RefObject<HTMLButtonElement>;
   onNext: () => void;
@@ -27,6 +29,7 @@ const GuidedTourCard = forwardRef<HTMLDivElement, GuidedTourCardProps>(
       totalSteps,
       isLast,
       canGoBack,
+      mode,
       reducedMotion,
       nextButtonRef,
       onNext,
@@ -75,14 +78,27 @@ const GuidedTourCard = forwardRef<HTMLDivElement, GuidedTourCardProps>(
               Back
             </button>
           )}
-          <button
-            ref={nextButtonRef}
-            type="button"
-            onClick={onNext}
-            className="flex-1 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-orange-500/25 transition-all hover:shadow-orange-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-          >
-            {isLast ? 'Finish Tour' : 'Next'}
-          </button>
+          {mode === 'click' ? (
+            <p
+              aria-live="polite"
+              className="flex flex-1 items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2.5 text-xs font-bold text-orange-200"
+            >
+              <span aria-hidden="true" className="relative flex h-2 w-2 flex-shrink-0">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 motion-safe:animate-ping"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-400"></span>
+              </span>
+              Click the highlighted control to continue
+            </p>
+          ) : (
+            <button
+              ref={nextButtonRef}
+              type="button"
+              onClick={onNext}
+              className="flex-1 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-orange-500/25 transition-all hover:shadow-orange-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              {isLast ? 'Finish Tour' : 'Next'}
+            </button>
+          )}
           <button
             type="button"
             onClick={onSkip}

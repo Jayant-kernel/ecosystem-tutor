@@ -11,6 +11,8 @@ interface GuidedTourOverlayProps {
   target: TourRect;
   /** Fade the scrim in once the first target is measured. */
   visible: boolean;
+  /** The step requires a real click: pulse the ring as an affordance. */
+  awaitingClick: boolean;
   reducedMotion: boolean;
 }
 
@@ -25,6 +27,7 @@ const SPOTLIGHT_RADIUS = 14;
 const GuidedTourOverlay: React.FC<GuidedTourOverlayProps> = ({
   target,
   visible,
+  awaitingClick,
   reducedMotion,
 }) => {
   const vw = typeof window === 'undefined' ? 0 : window.innerWidth;
@@ -74,8 +77,14 @@ const GuidedTourOverlay: React.FC<GuidedTourOverlayProps> = ({
           transition: reducedMotion
             ? 'none'
             : 'left 280ms ease-out, top 280ms ease-out, width 280ms ease-out, height 280ms ease-out',
+          animation:
+            awaitingClick && !reducedMotion ? 'guided-tour-ring-pulse 1.6s ease-in-out infinite' : 'none',
         }}
       />
+      <style>{`@keyframes guided-tour-ring-pulse {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(249,115,22,0.9), 0 0 22px rgba(249,115,22,0.35), inset 0 0 0 1px rgba(255,255,255,0.25); }
+        50% { box-shadow: 0 0 0 3px rgba(251,146,60,1), 0 0 40px rgba(249,115,22,0.65), inset 0 0 0 1px rgba(255,255,255,0.25); }
+      }`}</style>
     </div>
   );
 };

@@ -66,6 +66,7 @@ const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({ isOpen, onClose
                     <p className="text-zinc-400 leading-relaxed text-sm max-w-lg">{course.description}</p>
 
                     <button
+                        data-tour="syllabus-start"
                         onClick={onStartCourse}
                         className="mt-6 w-full py-4 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transform hover:scale-[1.01] transition-all flex items-center justify-center group"
                     >

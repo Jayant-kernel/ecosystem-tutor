@@ -51,6 +51,7 @@ const RoadmapSidebar: React.FC<RoadmapSidebarProps> = ({ course, completedLesson
                     )}
 
                     <button
+                      data-tour={isCurrent ? 'lesson-item' : undefined}
                       onClick={() => onLessonClick(lesson.id)}
                       className={`w-full flex items-center p-2 rounded-xl transition-all cursor-pointer text-left relative z-10 border border-transparent ${isCurrent ? 'bg-orange-500/10 border-orange-500/20' : 'hover:bg-white/5 hover:border-white/5'}`}
                     >

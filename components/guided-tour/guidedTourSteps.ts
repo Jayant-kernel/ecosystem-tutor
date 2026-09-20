@@ -1,13 +1,22 @@
 import type { GuidedTourStep } from './guidedTourTypes';
 
 /**
- * Canonical site-wide step catalog, ordered as a progressive walkthrough:
- * global navigation → course discovery → course structure → lesson →
+ * Canonical site-wide walkthrough, ordered as a progressive journey:
+ * global navigation → course discovery → entering a course → lesson →
  * code → AI tutor → notes → visual teaching → reference → completion.
+ *
+ * Two step kinds:
+ * - `next` (passive): the user reads and clicks Next. Used where no
+ *   interaction is needed, or where forcing one would be destructive
+ *   (resetting code, completing a lesson, opening the mic).
+ * - `click` (interactive): the user MUST click the highlighted target.
+ *   Next is replaced by an instruction; the tour advances when the real
+ *   target click is observed and the app responds (including navigation).
  *
  * Steps whose `[data-tour]` target is not present in the current view are
  * skipped at runtime, so the same tour adapts to the landing page, the
- * course catalog, the reference guide, and the lesson view.
+ * course catalog, the syllabus modal, the reference guide, and the lesson
+ * view — and survives navigation between them.
  */
 export const TOUR_STEPS: readonly GuidedTourStep[] = [
   {
@@ -17,22 +26,25 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'The navbar is always within reach. Jump back to the landing experience or head straight to your courses.',
     placement: 'bottom',
+    interaction: 'next',
   },
   {
     id: 'nav-courses',
     target: 'nav-courses',
-    title: 'Browse courses',
+    title: 'Explore courses',
     description:
-      'This button takes you to the catalog, where every course lives with its syllabus, progress, and start button.',
+      "Let's start by exploring the courses available in Ecosystem. Click Courses to continue.",
     placement: 'bottom',
+    interaction: 'click',
   },
   {
     id: 'theme',
     target: 'theme',
     title: 'Light or dark',
     description:
-      'Switch between light and dark mode. Your choice is remembered for your next visit.',
+      'Switch between light and dark mode. Go ahead — click it to feel the difference. Your choice is remembered.',
     placement: 'bottom',
+    interaction: 'click',
   },
   {
     id: 'courses-introduction',
@@ -41,6 +53,7 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Browse structured learning paths and choose what you want to learn next — from first principles to advanced systems.',
     placement: 'bottom',
+    interaction: 'next',
   },
   {
     id: 'courses',
@@ -49,22 +62,7 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Each card is a complete learning path with lessons, practice, and AI tutor support baked in.',
     placement: 'bottom',
-  },
-  {
-    id: 'course-card',
-    target: 'course-card',
-    title: 'Start learning',
-    description:
-      'One click opens the lesson view. If you already have progress, this button becomes Continue Learning right where you left off.',
-    placement: 'top',
-  },
-  {
-    id: 'view-syllabus',
-    target: 'view-syllabus',
-    title: 'Preview the syllabus',
-    description:
-      'Open the full syllabus first — outcomes, prerequisites, and every module — so you know exactly what you are signing up for.',
-    placement: 'top',
+    interaction: 'next',
   },
   {
     id: 'dynamic-course',
@@ -73,6 +71,7 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Courses marked Dynamic track the ecosystem as it changes — new tools, replacements, and deprecations — instead of freezing in time.',
     placement: 'left',
+    interaction: 'next',
   },
   {
     id: 'course-progress',
@@ -81,46 +80,70 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Your completed lessons show up here as a percentage. Pick up any course exactly where you left it.',
     placement: 'top',
+    interaction: 'next',
+  },
+  {
+    id: 'view-syllabus',
+    target: 'view-syllabus',
+    title: 'Preview the syllabus',
+    description:
+      'Before you commit, look inside: outcomes, prerequisites, and every module. Click View Syllabus to open it.',
+    placement: 'top',
+    interaction: 'click',
+  },
+  {
+    id: 'syllabus-start',
+    target: 'syllabus-start',
+    title: 'Start learning',
+    description:
+      'This is the full syllabus. When you are ready, click Start Learning Now to enter the course for real.',
+    placement: 'left',
+    interaction: 'click',
+  },
+  {
+    id: 'course-card',
+    target: 'course-card',
+    title: 'Or jump straight in',
+    description:
+      'Changed your mind about the syllabus? Click here to open the lesson view directly — it resumes where you left off.',
+    placement: 'top',
+    interaction: 'click',
   },
   {
     id: 'modules',
     target: 'modules',
     title: 'Course modules',
     description:
-      'This opens the course roadmap: every module, lesson, and practice set in order. Jump anywhere, anytime.',
+      'This button opens the course roadmap: every module, lesson, and practice set in order. Use it to jump anywhere, anytime.',
     placement: 'right',
+    interaction: 'next',
   },
   {
-    id: 'ai-tutor',
-    target: 'ai-tutor',
-    title: 'Ask your AI tutor',
+    id: 'lesson-item',
+    target: 'lesson-item',
+    title: 'You are here',
     description:
-      'Switch to the AI Tutor tab to talk or type with your tutor. Ask questions, request hints, or ask for a diagram of anything.',
+      'The roadmap marks your current lesson. Pick any lesson to open it — your progress is saved as you go.',
     placement: 'right',
-  },
-  {
-    id: 'voice-tutor',
-    target: 'voice-tutor',
-    title: 'Talk out loud',
-    description:
-      'Tap the orb and speak. The tutor hears you, explains the lesson, and can write and highlight code as it teaches.',
-    placement: 'right',
+    interaction: 'next',
   },
   {
     id: 'code-editor',
     target: 'code-editor',
     title: 'Write real code',
     description:
-      'This is your workspace. Edit, run, and test your code here — the tutor sees what you write and helps you debug it.',
+      'Here is where you write and modify the code. The tutor sees what you write and helps you debug it.',
     placement: 'left',
+    interaction: 'next',
   },
   {
     id: 'run-code',
     target: 'run-code',
     title: 'Run your code',
     description:
-      'Execute what you wrote and see the output in the console below. Fast feedback is how debugging clicks.',
+      'Execute what you wrote and see the result in the console below. Click Run Code to try it right now.',
     placement: 'left',
+    interaction: 'click',
   },
   {
     id: 'reset-code',
@@ -129,30 +152,52 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Made a mess? Reset restores the lesson’s starter code so you can try again from a clean slate.',
     placement: 'top',
+    interaction: 'next',
   },
   {
     id: 'exercises',
     target: 'exercises',
     title: 'Prove it with exercises',
     description:
-      'The Exercises tab holds graded checks for this lesson. Run the tests to prove your solution actually works.',
+      'Graded checks live under the Exercises tab. Click it to see how your solution is tested.',
     placement: 'left',
+    interaction: 'click',
+  },
+  {
+    id: 'ai-tutor',
+    target: 'ai-tutor',
+    title: 'Ask your AI tutor',
+    description:
+      'This tab is your tutor’s home: conversation, voice, and visual explanations. Click it to open the tutor panel.',
+    placement: 'right',
+    interaction: 'click',
+  },
+  {
+    id: 'voice-tutor',
+    target: 'voice-tutor',
+    title: 'Talk out loud',
+    description:
+      'Tap the orb whenever you are ready to speak. The tutor hears you, explains the lesson, and can write and highlight code as it teaches.',
+    placement: 'right',
+    interaction: 'next',
   },
   {
     id: 'notes',
     target: 'notes',
     title: 'Keep your notes',
     description:
-      'Save important ideas, explanations, and discoveries per lesson. Your notes persist across visits when you are signed in.',
+      'Save important ideas per lesson — they persist across visits when you are signed in. Click Notes to open your notebook.',
     placement: 'right',
+    interaction: 'click',
   },
   {
     id: 'visual-teaching',
     target: 'visual-teaching',
     title: 'See it visually',
     description:
-      'When the tutor draws a diagram, switch between Code and Visual here to step through the data flow the tutor is explaining.',
+      'When the tutor draws a diagram, flip between Code and Visual here to step through the data flow. Click Visual to see the teaching canvas.',
     placement: 'left',
+    interaction: 'click',
   },
   {
     id: 'reference-guide',
@@ -161,6 +206,7 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Every concept from the course, searchable in one place. Perfect when you need a quick refresher mid-lesson.',
     placement: 'bottom',
+    interaction: 'next',
   },
   {
     id: 'reference-search',
@@ -169,13 +215,15 @@ export const TOUR_STEPS: readonly GuidedTourStep[] = [
     description:
       'Type a topic, lesson, or module to instantly find every explanation of it across the whole course.',
     placement: 'bottom',
+    interaction: 'next',
   },
   {
     id: 'complete-lesson',
     target: 'complete-lesson',
     title: 'Complete the lesson',
     description:
-      'Finished? Mark the lesson complete to bank your progress and unlock the next step of your path.',
+      'When you finish a lesson for real, mark it complete here to bank your progress and unlock what is next.',
     placement: 'top',
+    interaction: 'next',
   },
 ];

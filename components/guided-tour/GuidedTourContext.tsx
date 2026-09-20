@@ -49,6 +49,12 @@ interface GuidedTourContextValue {
   next: () => void;
   prev: () => void;
   goTo: (index: number) => void;
+  /**
+   * Step back to the nearest previous step whose target exists in the
+   * current DOM. Never navigates — if no earlier target is present, this
+   * is a no-op so Back can never strand the spotlight.
+   */
+  prevPresent: () => void;
   dismissPrompt: () => void;
 }
 
@@ -111,6 +117,15 @@ export const GuidedTourProvider: React.FC<{ children: React.ReactNode }> = ({
     [steps.length],
   );
 
+  const prevPresent = useCallback(() => {
+    setStepIndex((index) => {
+      for (let i = index - 1; i >= 0; i -= 1) {
+        if (document.querySelector(`[data-tour="${steps[i].target}"]`)) return i;
+      }
+      return index;
+    });
+  }, [steps]);
+
   const dismissPrompt = useCallback(() => {
     writeFlag(TOUR_PROMPT_DISMISSED_KEY);
     // Re-render consumers that gate on the prompt key.
@@ -130,9 +145,10 @@ export const GuidedTourProvider: React.FC<{ children: React.ReactNode }> = ({
       next,
       prev,
       goTo,
+      prevPresent,
       dismissPrompt,
     }),
-    [isOpen, steps, stepIndex, isFirstVisit, openTour, closeTour, next, prev, goTo, dismissPrompt],
+    [isOpen, steps, stepIndex, isFirstVisit, openTour, closeTour, next, prev, goTo, prevPresent, dismissPrompt],
   );
 
   return <GuidedTourContext.Provider value={value}>{children}</GuidedTourContext.Provider>;
