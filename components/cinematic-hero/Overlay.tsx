@@ -233,11 +233,16 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
         // just after. Each word scatters independently and converges to the
         // exact layout — the assembled page matches the hero copy precisely.
         // All pure in t — reverse is the exact inverse.
-        // Cosmic tail (additive, past every validated window): once the panel
-        // has fully assembled it exits over PANEL_EXIT_*, yielding the frame
-        // to the space act. Below PANEL_EXIT_START this factor is exactly 1,
-        // so no earlier frame changes.
-        setFade(panelRef.current, panel * (1 - panelExit(t)), 0, true);
+        // Cosmic tail (additive, past every validated window): the panel's
+        // BACKGROUND dissolves so the space act shows through behind it,
+        // while the hero content itself stays fully assembled and readable.
+        // Below PANEL_EXIT_START the background is exactly the panel's
+        // #0D0D0D, so no earlier frame changes.
+        setFade(panelRef.current, panel, 0, true);
+        const panelEl = panelRef.current;
+        if (panelEl) {
+          panelEl.style.backgroundColor = `rgba(13, 13, 13, ${(1 - panelExit(t)).toFixed(3)})`;
+        }
         const eyebrow = smoothstep(0.64, 0.74, t);
         setFade(eyebrowRef.current, eyebrow);
         scatterWords(eyebrowWordRefs.current, SEEDS.eyebrow, t, 0);
