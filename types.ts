@@ -155,9 +155,46 @@ export interface Lesson {
      * - hands-on:   full coding loop with tests.
      */
     mode?: LessonMode;
+    /**
+     * Change metadata for lessons in the Dynamic Course. Omitted by every
+     * stable-course lesson. See DynamicLessonMeta.
+     */
+    dynamic?: DynamicLessonMeta;
 }
 
 export type LessonMode = 'theory' | 'light' | 'hands-on';
+
+// --- Dynamic-course change metadata ---------------------------------------
+// The Dynamic Course tracks a moving ecosystem instead of a fixed stack, so
+// each of its lessons carries change metadata. Every field is OPTIONAL:
+// stable courses simply omit `dynamic`. A future update pipeline
+// (sources → change detection → AI proposal → review → course update) can
+// add, refresh, deprecate, or replace individual lessons by reading and
+// writing exactly these fields — never by rewriting the whole course.
+
+/** What kind of ecosystem change a dynamic lesson describes. */
+export type DynamicChangeCategory =
+  | 'new'         // newly introduced technology or service
+  | 'emerging'    // gaining traction, worth watching, not yet default
+  | 'updated'     // major version / API / behavior change in something taught
+  | 'alternative' // better/faster/simpler replacement for an older approach
+  | 'deprecated'; // on the way out — what to migrate to instead
+
+export interface DynamicLessonMeta {
+  category: DynamicChangeCategory;
+  /** Technology or service the lesson tracks (e.g. "serverless GPUs"). */
+  technology?: string;
+  /** Version the lesson was written against, when applicable. */
+  version?: string;
+  /** ISO date (YYYY-MM) the technology/change first appeared. */
+  introducedAt?: string;
+  /** ISO date (YYYY-MM) this lesson's content was last updated. */
+  lastUpdatedAt?: string;
+  /** ISO date (YYYY-MM) this lesson was last reviewed for accuracy. */
+  lastReviewedAt?: string;
+  /** IDs of lessons/topics this lesson replaces or offers an alternative to. */
+  supersedes?: string[];
+}
 
 export interface Module {
     id: string;
@@ -210,6 +247,14 @@ export interface Course {
     level?: string;
     totalDuration?: string;
     modules: Module[];
+    /**
+     * Marks a continuously-updated course (the Dynamic Course). Lets cards,
+     * dashboards, and any future update pipeline distinguish evolving
+     * content from the stable core curriculum without ID sniffing.
+     */
+    isDynamic?: boolean;
+    /** ISO date (YYYY-MM) a dynamic course's content was last refreshed. */
+    lastUpdated?: string;
 }
 
 export interface RawCurriculumDatabase {

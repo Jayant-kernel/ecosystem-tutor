@@ -10,7 +10,8 @@ interface DashboardPageProps {
 }
 
 const COURSE_ICONS: Record<string, string> = {
-  'cloud-big-data-engineering': 'fas fa-cloud text-sky-400'
+  'cloud-big-data-engineering': 'fas fa-cloud text-sky-400',
+  'dynamic-cloud-big-data': 'fas fa-arrows-rotate text-lime-300'
 };
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ navigateTo, activeCourse }) => {

@@ -1,12 +1,14 @@
 
 import { Course, Progress } from './types';
 import { CLOUD_BIG_DATA_COURSE } from './cloudBigDataCurriculum';
+import { DYNAMIC_CLOUD_COURSE } from './dynamicCourseCurriculum';
 
-// Re-export the Cloud & Big Data Engineering course so the rest of the app
-// can treat every course uniformly.
-export { CLOUD_BIG_DATA_COURSE };
+// Re-export both courses so the rest of the app can treat every course
+// uniformly. The stable core course and its continuously-updated dynamic
+// counterpart stay independent: separate IDs, separate progress.
+export { CLOUD_BIG_DATA_COURSE, DYNAMIC_CLOUD_COURSE };
 
-export const COURSES: Course[] = [CLOUD_BIG_DATA_COURSE];
+export const COURSES: Course[] = [CLOUD_BIG_DATA_COURSE, DYNAMIC_CLOUD_COURSE];
 
 export const DEFAULT_COURSE_ID = CLOUD_BIG_DATA_COURSE.id;
 

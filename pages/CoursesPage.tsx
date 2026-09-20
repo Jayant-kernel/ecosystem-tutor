@@ -15,6 +15,8 @@ interface CoursePresentation {
   iconColor: string;
   bgColor: string;
   gradient: string;
+  /** Optional continuously-updated marker shown beside the level pill. */
+  badge?: string;
 }
 
 const COURSE_PRESENTATION: Record<string, CoursePresentation> = {
@@ -23,6 +25,13 @@ const COURSE_PRESENTATION: Record<string, CoursePresentation> = {
     iconColor: 'text-sky-400',
     bgColor: 'bg-sky-400/10',
     gradient: 'from-sky-600 to-cyan-400'
+  },
+  'dynamic-cloud-big-data': {
+    icon: 'DYN',
+    iconColor: 'text-lime-300',
+    bgColor: 'bg-lime-300/10',
+    gradient: 'from-lime-500 to-emerald-400',
+    badge: 'Dynamic · Continuously updated'
   }
 };
 
@@ -100,9 +109,16 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
                       {course.icon}
                     </div>
                     {course.isActive ? (
-                      <span className="px-3 py-1 rounded-full bg-zinc-800 border border-white/5 text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                        {course.level}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="px-3 py-1 rounded-full bg-zinc-800 border border-white/5 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                          {course.level}
+                        </span>
+                        {course.badge ? (
+                          <span className="px-3 py-1 rounded-full bg-lime-300/10 border border-lime-300/30 text-xs font-bold text-lime-300 uppercase tracking-wider">
+                            {course.badge}
+                          </span>
+                        ) : null}
+                      </div>
                     ) : (
                       <span className="px-3 py-1 rounded-full bg-zinc-800 border border-white/5 text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-hammer"></i> Building
