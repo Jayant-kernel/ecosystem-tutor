@@ -48,7 +48,7 @@ const ActiveCourseProgress: React.FC<{ course: Course }> = ({ course }) => {
   const percentage = totalLessons ? Math.round((progress.completedLessons.length / totalLessons) * 100) : 0;
 
   return (
-    <div className="mt-5 space-y-2">
+    <div data-tour="course-progress" className="mt-5 space-y-2">
       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
         <span>Course progress</span><span className="text-orange-300">{percentage}%</span>
       </div>
@@ -76,7 +76,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
         {/* Background Ambient Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
-        <header className="text-center mb-20 relative">
+        <header data-tour="courses-introduction" className="text-center mb-20 relative">
           <span className="inline-block px-4 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400 text-xs font-bold uppercase tracking-wider mb-6 animate-fade-in-up">
             Level Up Your Skills
           </span>
@@ -147,6 +147,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
                       <i className="fas fa-arrow-right ml-2 group-hover/btn:translate-x-1 transition-transform"></i>
                     </button>
                     <button
+                      data-tour={index === 0 ? 'view-syllabus' : undefined}
                       onClick={() => setSelectedCourse(course)}
                       className="w-full py-3.5 rounded-xl font-bold text-sm tracking-wide bg-zinc-800 text-zinc-300 border border-white/10 hover:bg-zinc-700 hover:text-white transition-all flex items-center justify-center"
                     >

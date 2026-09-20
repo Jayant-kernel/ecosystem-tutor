@@ -904,7 +904,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
                     {(!isTheory || showVisual) && (
                         <div ref={rightPaneRef} className="workspace-card-deck flex-1 md:h-full min-h-0 animate-fade-in-up delay-100 md:col-span-3 relative">
                             {!isTheory && <>
-                                {visualPlan && <div className="visual-workspace-switch" role="tablist"><button role="tab" aria-selected={workspaceMode === 'code'} onClick={() => setWorkspaceMode('code')}>Code</button><button role="tab" aria-selected={workspaceMode === 'visual'} onClick={() => setWorkspaceMode('visual')}>Visual</button></div>}
+                                {visualPlan && <div data-tour="visual-teaching" className="visual-workspace-switch" role="tablist"><button role="tab" aria-selected={workspaceMode === 'code'} onClick={() => setWorkspaceMode('code')}>Code</button><button role="tab" aria-selected={workspaceMode === 'visual'} onClick={() => setWorkspaceMode('visual')}>Visual</button></div>}
                                 {/* Always mounted: Monaco content, console output and tabs survive visual mode. */}
                                 <motion.div
                                     ref={codeLayerRef}

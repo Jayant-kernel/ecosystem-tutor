@@ -29,7 +29,9 @@ const Navbar: React.FC<NavbarProps> = ({ navigateTo, currentView }) => {
                 </div>
 
                 <div className="flex items-center gap-4 shrink-0">
-                    <ThemeToggle className="size-8 p-1" />
+                    <span data-tour="theme" className="inline-flex shrink-0">
+                        <ThemeToggle className="size-8 p-1" />
+                    </span>
                     <GuidedTourTrigger />
                     <button data-tour="nav-courses" onClick={() => handleNavigation('courses')} className="group inline-flex overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(255,255,255,0.1)] rounded-full pt-[1px] pr-[1px] pb-[1px] pl-[1px] relative items-center justify-center">
                         <span className="absolute inset-[-100%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_75%,#ffffff_100%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"></span>

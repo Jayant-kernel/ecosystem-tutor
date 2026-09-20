@@ -17,6 +17,7 @@ const LearningHeader: React.FC<LearningHeaderProps> = ({ lessonTitle, courseTitl
         <header className="h-16 px-4 md:px-6 border-b border-white/5 flex items-center justify-between bg-zinc-900/40 backdrop-blur-md flex-shrink-0 relative z-20">
             <div className="flex items-center gap-4">
                 <button
+                    data-tour="modules"
                     onClick={toggleSidebar}
                     className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all border border-white/5"
                     aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}

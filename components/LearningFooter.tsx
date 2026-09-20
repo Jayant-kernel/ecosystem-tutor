@@ -10,6 +10,7 @@ const LearningFooter: React.FC<LearningFooterProps> = ({ onComplete, isCompletin
     return (
         <footer className="h-auto md:h-20 p-4 border-t border-white/5 bg-zinc-900/40 backdrop-blur-md flex-shrink-0 flex items-center justify-end z-20">
             <button
+                data-tour="complete-lesson"
                 onClick={onComplete}
                 disabled={isCompleting}
                 className={`

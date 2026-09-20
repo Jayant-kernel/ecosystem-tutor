@@ -138,12 +138,14 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
                         Guide
                     </button>
                     <button
+                        data-tour="ai-tutor"
                         onClick={() => setActiveTab('tutor')}
                         className={`flex-1 px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'tutor' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         AI Tutor
                     </button>
                     <button
+                        data-tour="notes"
                         onClick={() => setActiveTab('notes')}
                         className={`flex-1 px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'notes' ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >

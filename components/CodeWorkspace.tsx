@@ -74,6 +74,7 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                             <i className="fas fa-terminal mr-2"></i> Console
                         </button>
                         <button
+                            data-tour="exercises"
                             onClick={() => setActiveTab('exercises')}
                             className={`pb-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'exercises' ? 'border-orange-500 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                         >
@@ -85,6 +86,7 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                     {/* Action Buttons */}
                     <div className="flex items-center gap-3">
                         <button
+                            data-tour="reset-code"
                             onClick={onResetCode}
                             className="px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wider"
                             title="Reset Code"
@@ -93,6 +95,7 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                             <span className="hidden sm:inline">Reset</span>
                         </button>
                         <button
+                            data-tour="run-code"
                             onClick={onRunCode}
                             className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-5 py-2 rounded-xl flex items-center gap-2 text-xs font-bold transition-all shadow-lg shadow-orange-500/20 transform hover:scale-105"
                             title="Run Code"

@@ -12,6 +12,13 @@ export interface GuidedTourStep {
   title: string;
   description: string;
   placement: TourPlacement;
+  /**
+   * Interaction mode. Only `highlight` is currently honored: the tour
+   * spotlights the element and lets the user act. Reserved for future
+   * non-destructive guided interactions — the tour must never auto-click
+   * anything that navigates, mutates data, or triggers API calls.
+   */
+  action?: 'highlight';
 }
 
 export interface GuidedTourState {

@@ -44,7 +44,7 @@ const ExplanationsPage: React.FC<ExplanationsPageProps> = ({ navigateTo }) => {
             </p>
         </header>
 
-        <div className="mb-8 relative">
+        <div data-tour="reference-search" className="mb-8 relative">
             <i className="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
             <input 
                 type="text"
