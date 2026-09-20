@@ -11,6 +11,15 @@ interface StoryPathProps {
   strokeWidth?: number;
   tipColor?: string;
   trackOpacity?: number;
+  /**
+   * Traveler radius in viewBox units. Defaults to a small dot
+   * (`strokeWidth * 1.7`); chapters that need the traveler to read as an
+   * orb beside a keyword pass a larger radius. ViewBox units scale with the
+   * SVG at every viewport, so this never uses screen pixel coordinates.
+   */
+  tipRadius?: number;
+  /** When true, the traveler gets a soft halo so it reads as a glowing orb. */
+  tipGlow?: boolean;
 }
 
 /**
@@ -26,11 +35,15 @@ export function StoryPath({
   strokeWidth = 5,
   tipColor = STORY.pine,
   trackOpacity = 0.12,
+  tipRadius,
+  tipGlow = false,
 }: StoryPathProps): JSX.Element {
   const reduce = useReducedMotion();
   const pathRef = useRef<SVGPathElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
+  const haloRef = useRef<SVGCircleElement>(null);
   const lengthRef = useRef(0);
+  const radius = tipRadius ?? strokeWidth * 1.7;
 
   // Reduced-motion readers get the completed illustration, statically.
   const filled = useTransform(progress, () => 1);
@@ -46,9 +59,16 @@ export function StoryPath({
       if (!total) return;
       const clamped = Math.min(1, Math.max(0, v));
       const point = path.getPointAtLength(clamped * total);
+      const hidden = clamped <= 0.002 || clamped >= 0.999;
       dot.setAttribute('cx', point.x.toFixed(1));
       dot.setAttribute('cy', point.y.toFixed(1));
-      dot.setAttribute('opacity', clamped <= 0.002 || clamped >= 0.999 ? '0' : '1');
+      dot.setAttribute('opacity', hidden ? '0' : '1');
+      const halo = haloRef.current;
+      if (halo) {
+        halo.setAttribute('cx', point.x.toFixed(1));
+        halo.setAttribute('cy', point.y.toFixed(1));
+        halo.setAttribute('opacity', hidden ? '0' : '0.22');
+      }
     } catch {
       // Geometry unavailable (e.g. display:none ancestors) — dot stays hidden.
     }
@@ -75,7 +95,20 @@ export function StoryPath({
         strokeLinejoin="round"
         style={{ pathLength: draw }}
       />
-      <circle ref={dotRef} r={strokeWidth * 1.7} fill={tipColor} opacity={0} />
+      {tipGlow ? (
+        <circle ref={haloRef} r={radius * 2.1} fill={tipColor} opacity={0} />
+      ) : null}
+      <circle
+        ref={dotRef}
+        r={radius}
+        fill={tipColor}
+        opacity={0}
+        style={
+          tipGlow
+            ? { filter: `drop-shadow(0 0 ${radius * 0.9}px ${tipColor})` }
+            : undefined
+        }
+      />
     </g>
   );
 }

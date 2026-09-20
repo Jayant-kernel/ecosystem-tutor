@@ -24,6 +24,15 @@ const KEYWORDS = [
  * Chapter 1 — the problem. The section starts clean; scroll draws an organic
  * stroke through complication keywords, ending on the turn:
  * "What if you could just ask?"
+ *
+ * The traveler is the chapter's orb: the SAME chapter progress that reveals
+ * each keyword station also positions the orb at that path fraction, so the
+ * orb travels into each keyword area exactly as its station activates. The
+ * station layout already places ERROR just right of the first bend
+ * (path x≈590 → label x=618, both near y≈238, at=0.15), so at ERROR reveal
+ * the orb sits on the path immediately left of the word:
+ * ERROR ← orb ← path. The ~28-unit viewBox gap keeps both legible with no
+ * overlay, and everything scales with the SVG on mobile.
  */
 export function ProblemChapter(): JSX.Element {
   const ref = useRef<HTMLElement | null>(null);
@@ -41,7 +50,13 @@ export function ProblemChapter(): JSX.Element {
         role="img"
         aria-label="A winding path through coding frustrations"
       >
-        <StoryPath d={PATH_D} progress={scrollYProgress} />
+        <StoryPath
+          d={PATH_D}
+          progress={scrollYProgress}
+          tipColor={STORY.ember}
+          tipRadius={22}
+          tipGlow
+        />
         {KEYWORDS.map((k) => (
           <Station key={k.word} progress={scrollYProgress} at={k.at}>
             <StationLabel x={k.x} y={k.y} anchor={k.anchor} size={34} spacing="6px" color={STORY.ink}>

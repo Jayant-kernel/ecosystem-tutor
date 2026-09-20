@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   motion,
   useMotionValueEvent,
@@ -41,19 +41,66 @@ const PATH_MOBILE =
 /** Orb diameter as a fraction of the slide width (resolution-independent). */
 const ORB_DIAMETER_FRACTION = 0.09;
 
+/**
+ * Camera zoom applied to the slide track inside the sticky viewport. The
+ * track keeps its exact 1:2 aspect (so orb viewBox percentages stay valid);
+ * scaling it up gives the sticky stage real coverage overflow to pan within,
+ * which is what makes the viewport reveal the journey instead of showing the
+ * whole slide shrunk at once. Purely relative — no viewport pixel constants.
+ */
+const CAMERA_ZOOM = 1.6;
+/** Viewport-space focal point for the orb (fractions of the sticky stage). */
+const FOCAL_X = 0.5;
+const FOCAL_Y = 0.44;
+
+interface SlideRefs {
+  desktop: React.RefObject<SVGPathElement | null>;
+  mobile: React.RefObject<SVGPathElement | null>;
+  orb: React.RefObject<HTMLDivElement | null>;
+  speckle: React.RefObject<HTMLDivElement | null>;
+  stage: React.RefObject<HTMLDivElement | null>;
+  track: React.RefObject<HTMLDivElement | null>;
+}
+
+function applyCamera(refs: SlideRefs, fx: number, fy: number): void {
+  const track = refs.track.current;
+  const stage = refs.stage.current;
+  if (!track || !stage) return;
+  // Layout (untransformed) sizes — measured at runtime so every viewport and
+  // both slide geometries behave identically with no hardcoded coordinates.
+  const trackW = track.offsetWidth;
+  const trackH = track.offsetHeight;
+  const stageW = stage.clientWidth;
+  const stageH = stage.clientHeight;
+  if (!trackW || !trackH || !stageW || !stageH) return;
+  const scaledW = trackW * CAMERA_ZOOM;
+  const scaledH = trackH * CAMERA_ZOOM;
+  // Coverage overflow is the only pan budget: the scaled track must always
+  // cover the stage, so clamp the pan to ±(scaled - stage)/2 on each axis.
+  const maxPanX = Math.max(0, (scaledW - stageW) / 2);
+  const maxPanY = Math.max(0, (scaledH - stageH) / 2);
+  // Orb offset from the track center in scaled pixels, plus the focal bias
+  // (focal sits slightly above stage center so the path ahead stays visible).
+  const wantX = (FOCAL_X - 0.5) * stageW - (fx - 0.5) * scaledW;
+  const wantY = (FOCAL_Y - 0.5) * stageH - (fy - 0.5) * scaledH;
+  const tx = Math.min(maxPanX, Math.max(-maxPanX, wantX));
+  const ty = Math.min(maxPanY, Math.max(-maxPanY, wantY));
+  track.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${CAMERA_ZOOM})`;
+}
+
 function useSlideGeometry(
   progress: MotionValue<number>,
-  desktopRef: React.RefObject<SVGPathElement | null>,
-  mobileRef: React.RefObject<SVGPathElement | null>,
-  orbRef: React.RefObject<HTMLDivElement | null>,
-  speckleRef: React.RefObject<HTMLDivElement | null>,
+  refs: SlideRefs,
 ): void {
   const lengthCache = useRef<{ path: SVGPathElement | null; total: number }>({ path: null, total: 0 });
+  const lastV = useRef(0);
+  const renderRef = useRef<(v: number) => void>(() => {});
 
-  useMotionValueEvent(progress, 'change', (v) => {
-    const desktop = desktopRef.current;
-    const mobile = mobileRef.current;
-    const orb = orbRef.current;
+  const render = (v: number): void => {
+    lastV.current = v;
+    const desktop = refs.desktop.current;
+    const mobile = refs.mobile.current;
+    const orb = refs.orb.current;
     // Whichever slide is laid out (desktop md+ / mobile below) owns the geometry.
     const active =
       desktop && desktop.getBoundingClientRect().width > 0 ? desktop : mobile;
@@ -67,18 +114,43 @@ function useSlideGeometry(
       if (!total) return;
       const clamped = Math.min(1, Math.max(0, v));
       const point = active.getPointAtLength(clamped * total);
-      orb.style.left = `${((point.x / VIEW_W) * 100).toFixed(2)}%`;
-      orb.style.top = `${((point.y / VIEW_H) * 100).toFixed(2)}%`;
-      const speckle = speckleRef.current;
+      const fx = point.x / VIEW_W;
+      const fy = point.y / VIEW_H;
+      orb.style.left = `${(fx * 100).toFixed(2)}%`;
+      orb.style.top = `${(fy * 100).toFixed(2)}%`;
+      const speckle = refs.speckle.current;
       if (speckle) {
         const orbRadiusUnits = (ORB_DIAMETER_FRACTION / 2) * VIEW_W;
         const rollDeg = ((clamped * total) / Math.max(1e-6, orbRadiusUnits)) * (180 / Math.PI);
         speckle.style.transform = `rotate(${rollDeg.toFixed(1)}deg)`;
       }
+      // Same scroll input re-maps the orb's track-space point into the
+      // sticky viewport: the stage pans (clamped to coverage) so the orb
+      // stays readable instead of drifting outside the useful viewport.
+      applyCamera(refs, fx, fy);
     } catch {
       // Geometry unavailable — orb stays parked.
     }
-  });
+  };
+
+  useMotionValueEvent(progress, 'change', render);
+  renderRef.current = render;
+
+  // Resize/orientation change without scrolling would leave a stale camera
+  // transform (sizes changed, progress didn't) — re-render from last progress.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = (): void => {
+      renderRef.current(lastV.current);
+    };
+    window.addEventListener('resize', onResize);
+    // Initial camera park: orb at the top reads against the journey start.
+    const raf = window.requestAnimationFrame(() => renderRef.current(lastV.current));
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.cancelAnimationFrame(raf);
+    };
+  }, []);
 }
 
 function SlideTrack({
@@ -119,6 +191,8 @@ function SlideTrack({
 
 export function PostCinematicJourney(): JSX.Element {
   const sectionRef = useRef<HTMLElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const desktopRef = useRef<SVGPathElement | null>(null);
   const mobileRef = useRef<SVGPathElement | null>(null);
   const orbRef = useRef<HTMLDivElement | null>(null);
@@ -131,7 +205,20 @@ export function PostCinematicJourney(): JSX.Element {
   const draw = reduce ? filled : scrollYProgress;
   const parked = useTransform(scrollYProgress, () => 0);
   const orbProgress = reduce ? parked : scrollYProgress;
-  useSlideGeometry(orbProgress, desktopRef, mobileRef, orbRef, speckleRef);
+  const refs: SlideRefs = {
+    desktop: desktopRef,
+    mobile: mobileRef,
+    orb: orbRef,
+    speckle: speckleRef,
+    stage: stageRef,
+    track: trackRef,
+  };
+  useSlideGeometry(orbProgress, refs);
+
+  // Reduced motion keeps the full slide statically framed — no camera pan.
+  useEffect(() => {
+    if (reduce && trackRef.current) trackRef.current.style.transform = 'none';
+  }, [reduce]);
 
   return (
     <section
@@ -141,12 +228,23 @@ export function PostCinematicJourney(): JSX.Element {
       className="relative bg-black"
       style={{ height: '300vh' }}
     >
-      <div className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden">
+      <div
+        ref={stageRef}
+        className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden"
+      >
         {/*
           Exact 1:2 aspect at every viewport (height capped by width) so the
           orb's viewBox percentages always map onto the rendered box.
+          SCROLL SPACE (0..1 over this 300vh section) drives the orb along
+          the full path; VIEWPORT SPACE is this sticky stage — the camera
+          transform on the track (same scroll input, runtime-measured sizes)
+          pans the zoomed track so the orb's track point stays readable.
         */}
-        <div className="relative aspect-[1/2] h-[min(100%,188vw)]" aria-hidden="true">
+        <div
+          ref={trackRef}
+          className="relative aspect-[1/2] h-[min(100%,188vw)] will-change-transform"
+          aria-hidden="true"
+        >
           <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
             <SlideTrack d={PATH_DESKTOP} progress={draw} measureRef={desktopRef} className="hidden md:block" />
             <SlideTrack d={PATH_MOBILE} progress={draw} measureRef={mobileRef} className="md:hidden" />
