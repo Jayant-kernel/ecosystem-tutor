@@ -11,7 +11,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ navigateTo }) => {
     return (
         <div className="min-h-screen bg-background relative overflow-x-clip">
             <CinematicHero navigateTo={navigateTo} />
-            <PostCinematicJourney />
+            <PostCinematicJourney navigateTo={navigateTo} />
         </div >
     );
 };

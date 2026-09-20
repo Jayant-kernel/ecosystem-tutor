@@ -8,25 +8,29 @@ import {
   type MotionValue,
 } from 'framer-motion';
 import { scrollTarget, STORY } from '../scroll-story/story';
+import type { View } from '../../App';
+import { JOURNEY_VIEWPORT_HEIGHTS } from '../journey/journeySections';
+import { JourneyContent, JourneyStatic } from '../journey/JourneyContent';
 
 /**
- * Post-cinematic slide journey. This section begins exactly where the hero
+ * Post-cinematic story journey. This section begins exactly where the hero
  * runway ends: the laptop film is over, and a glowing orb rolls down a
- * tall central slide as the user scrolls toward ScrollStory.
+ * tall continuous track that now serves as the structural spine of the
+ * landing page.
  *
  * Scroll position is the single source of truth — the section's own
- * scroll progress (same native document scroll, same framer pattern as the
- * story chapters) drives everything, so there is no second scroll system,
- * no timer, and no animation loop. Reverse scrolling retraces the path
- * exactly. The orb follows real arc length (`getPointAtLength`) and rolls
- * physically (rotation = arc / radius).
+ * scroll progress (same native document scroll) drives the orb along real
+ * arc length (`getPointAtLength`), the camera pan, the travelled-track
+ * illumination, AND the five data-driven journey sections (text/video fade
+ * in and out around the orb's position). No second scroll system, no timer,
+ * no animation loop. Reverse scrolling retraces everything exactly.
  *
  * Handoff model: orb progress maps 1:1 to section progress (p=1 → orb at
- * the path's bottom-center exit), the camera pans linearly with the same
- * progress (top of track at p=0, bottom at p=1 — no stall zones), and a
- * restrained veil blends the black stage into the story background over the
- * final stretch. Chapter 01's path enters top-center, so the two read as
- * one continuous track with essentially zero dead scroll.
+ * the path's bottom-center exit, final CTA dominant), the camera pans
+ * linearly with the same progress (top of track at p=0, bottom at p=1 —
+ * no stall zones, so every scroll increment visibly moves orb + camera +
+ * section fades together), and a restrained veil softens the final stretch
+ * before the footer arrives.
  */
 
 const VIEW_W = 600;
@@ -247,7 +251,11 @@ function SlideTrack({
   );
 }
 
-export function PostCinematicJourney(): JSX.Element {
+export function PostCinematicJourney({
+  navigateTo,
+}: {
+  navigateTo: (view: View) => void;
+}): JSX.Element {
   const sectionRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -287,13 +295,13 @@ export function PostCinematicJourney(): JSX.Element {
     <section
       ref={sectionRef}
       data-post-cinematic="journey"
-      aria-label="Slide journey into the learning chapters"
+      aria-label="Story journey following the orb down the path"
       className="relative bg-black"
-      style={{ height: '300vh' }}
+      style={{ height: reduce ? 'auto' : `${JOURNEY_VIEWPORT_HEIGHTS * 100}vh` }}
     >
       <div
         ref={stageRef}
-        className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden"
+        className={`${reduce ? 'relative' : 'sticky top-0'} flex h-screen w-full items-center justify-center overflow-hidden`}
       >
         {/*
           Exact 1:2 aspect at every viewport (height capped by width) so the
@@ -305,7 +313,7 @@ export function PostCinematicJourney(): JSX.Element {
         */}
         <div
           ref={trackRef}
-          className="relative aspect-[1/2] h-[min(100%,188vw)] will-change-transform"
+          className="pointer-events-none relative z-20 aspect-[1/2] h-[min(100%,188vw)] will-change-transform"
           aria-hidden="true"
         >
           <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
@@ -335,11 +343,21 @@ export function PostCinematicJourney(): JSX.Element {
           </div>
         </div>
         {/*
-          Handoff veil: over the final stretch the black stage breathes into
-          the story background (same token Chapter 01 uses), so the orb sinks
-          toward the light and Chapter 01 arrives as a continuation rather
-          than a hard black/white cut. The post path exits bottom-center and
-          the Chapter 01 path enters top-center — one conceptual track.
+          Journey content layer: the five data-driven sections render around
+          the track (text on one side, video on the other, alternating), all
+          driven by the SAME scrollYProgress MotionValue as the orb — the orb
+          stays the master timeline. The track keeps the visual center so the
+          path reads as the spine between text and video; the orb rides above
+          in DOM order only where panels leave the middle open.
+        */}
+        {!reduce && (
+          <JourneyContent progress={scrollYProgress} navigateTo={navigateTo} />
+        )}
+        {/*
+          Handoff veil: over the final stretch the black stage breathes toward
+          the light token so the orb sinks toward the footer handoff as a
+          continuation rather than a hard cut. The path exits bottom-center
+          with the final section dominant — one continuous track throughout.
         */}
         <motion.div
           aria-hidden="true"
@@ -351,6 +369,11 @@ export function PostCinematicJourney(): JSX.Element {
           }}
         />
       </div>
+      {/*
+        Reduced motion: same sections as a static stacked list below the
+        parked stage — full copy, no autoplay, no scroll-driven transforms.
+      */}
+      {reduce && <JourneyStatic navigateTo={navigateTo} />}
     </section>
   );
 }
