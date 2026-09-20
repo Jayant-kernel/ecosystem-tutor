@@ -18,29 +18,11 @@ interface CoursePresentation {
 }
 
 const COURSE_PRESENTATION: Record<string, CoursePresentation> = {
-  'javascript-complete': {
-    icon: 'JS',
-    iconColor: 'text-yellow-400',
-    bgColor: 'bg-yellow-400/10',
-    gradient: 'from-orange-600 to-orange-400'
-  },
   'cloud-big-data-engineering': {
     icon: 'AWS',
     iconColor: 'text-sky-400',
     bgColor: 'bg-sky-400/10',
     gradient: 'from-sky-600 to-cyan-400'
-  },
-  'python-coming-soon': {
-    icon: 'PY',
-    iconColor: 'text-blue-400',
-    bgColor: 'bg-blue-400/10',
-    gradient: 'from-blue-600 to-blue-400'
-  },
-  'go-coming-soon': {
-    icon: 'GO',
-    iconColor: 'text-cyan-400',
-    bgColor: 'bg-cyan-400/10',
-    gradient: 'from-cyan-600 to-cyan-400'
   }
 };
 
@@ -68,42 +50,15 @@ const ActiveCourseProgress: React.FC<{ course: Course }> = ({ course }) => {
   );
 };
 
-// Courses that are not built yet are shown as placeholders.
-const PLACEHOLDER_COURSES: Course[] = [
-  {
-    id: 'python-coming-soon',
-    title: 'Python for Everybody',
-    description: 'From scripts to data science. Master the world\'s most popular versatile programming language.',
-    level: 'Intermediate',
-    totalDuration: '6 Weeks',
-    modules: []
-  },
-  {
-    id: 'go-coming-soon',
-    title: 'Go: Scalable Systems',
-    description: 'Learn Google\'s high-performance language designed for modern cloud infrastructure and concurrency.',
-    level: 'Advanced',
-    totalDuration: '8 Weeks',
-    modules: []
-  }
-];
-
 const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId }) => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  // Combine real (active) courses with placeholders for uniform rendering
-  const allCourses = [
-    ...COURSES.map((course) => ({
-      ...course,
-      ...(COURSE_PRESENTATION[course.id] ?? DEFAULT_PRESENTATION),
-      isActive: true
-    })),
-    ...PLACEHOLDER_COURSES.map((course) => ({
-      ...course,
-      ...(COURSE_PRESENTATION[course.id] ?? DEFAULT_PRESENTATION),
-      isActive: false
-    }))
-  ];
+  // All listed courses are active enrollable courses; each renders a full card.
+  const allCourses = COURSES.map((course) => ({
+    ...course,
+    ...(COURSE_PRESENTATION[course.id] ?? DEFAULT_PRESENTATION),
+    isActive: true
+  }));
 
 
   return (
@@ -189,23 +144,6 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Human/Tutor Section */}
-        <div className="mt-32 relative rounded-[3rem] overflow-hidden bg-gradient-to-b from-zinc-900 to-black border border-white/5 p-12 md:p-24 text-center">
-          <div className="absolute top-0 right-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
-          <div className="relative z-10 max-w-3xl mx-auto">
-            <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-orange-500/30">
-              <i className="fas fa-microphone-alt text-4xl text-orange-500"></i>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold font-manrope mb-6">More Than Just Code. <br /> A <span className="text-orange-500">Conversation.</span></h2>
-            <p className="text-lg text-zinc-400 mb-10 leading-relaxed">
-              Unlike other platforms where you stare at text, Ecosystem allows you to talk through problems. It's like having a senior engineer sitting right next to you, 24/7.
-            </p>
-            <button onClick={() => navigateTo('courses')} className="px-8 py-4 rounded-full border border-white/20 hover:bg-white hover:text-black transition-all font-bold text-sm uppercase tracking-widest">
-              Experience the Difference
-            </button>
-          </div>
         </div>
       </div>
 
