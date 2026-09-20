@@ -2,7 +2,6 @@ import { Fragment, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { filmDriver } from './filmDriver';
 import { sampleTimeline, smoothstep } from './timeline';
-import { OrbJourneyMarkup, updateOrbJourney, type OrbRefs } from './OrbJourney';
 
 /**
  * Handoff window: the 3D screen fades out while the DOM panel fades in over
@@ -199,12 +198,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
   const ctaPrimaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const ctaSecondaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const noteWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
-  const orbWrapRef = useRef<HTMLDivElement | null>(null);
-  const orbTrackRef = useRef<SVGPathElement | null>(null);
-  const orbDrawnRef = useRef<SVGPathElement | null>(null);
-  const orbRef = useRef<HTMLDivElement | null>(null);
-  const orbSpeckleRef = useRef<HTMLDivElement | null>(null);
-  const orbLengthCache = useRef(0);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -264,17 +257,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
           canvasWrap.style.opacity = (1 - canvasFade).toFixed(3);
           canvasWrap.style.visibility = canvasFade >= 0.99 ? 'hidden' : 'visible';
         }
-
-        // Rolling orb journey: same film time, same tick — no new loop.
-        const orbRefs: OrbRefs = {
-          wrap: orbWrapRef,
-          track: orbTrackRef,
-          drawn: orbDrawnRef,
-          orb: orbRef,
-          speckle: orbSpeckleRef,
-          lengthCache: orbLengthCache,
-        };
-        updateOrbJourney(orbRefs, t, canvasFade);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -327,14 +309,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
         aria-hidden="true"
         className="pointer-events-none absolute bottom-0 left-0 h-px bg-orange-500/60"
         style={{ width: '0%' }}
-      />
-      {/* Rolling orb journey: under the handoff panel, fades with the canvas. */}
-      <OrbJourneyMarkup
-        wrap={orbWrapRef}
-        track={orbTrackRef}
-        drawn={orbDrawnRef}
-        orb={orbRef}
-        speckle={orbSpeckleRef}
       />
 
       <div
