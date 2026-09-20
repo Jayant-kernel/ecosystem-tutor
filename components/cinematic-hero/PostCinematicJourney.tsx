@@ -32,18 +32,47 @@ import { scrollTarget, STORY } from '../scroll-story/story';
 const VIEW_W = 600;
 const VIEW_H = 1200;
 
-/** Desktop slide: top-center start, asymmetric S-curves, bottom-center exit. */
+/**
+ * Desktop journey: one continuous downward track in seven visual movements —
+ * initial descent, wide sweep to the right wall and back across, a large
+ * teardrop loop (ring closed with a rounded neck, no self-crossing), a tight
+ * reversal tip with a left-side exit drop, a long flowing descent sweeping
+ * back right under the ring, a smaller teardrop loop whose tail pierces its
+ * base in one clean intentional X (~73°), and a final descent to the
+ * bottom-center handoff. Overall progress is strictly downward; local upward
+ * travel happens only inside the two loops and the reversal tip.
+ */
 const PATH_DESKTOP =
-  'M300,10 C310,140 480,180 470,310 ' +
-  'C460,440 140,480 150,610 ' +
-  'C160,740 460,780 450,910 ' +
-  'C445,1010 370,1090 300,1190';
+  'M300,10 C305,90 360,140 350,215 ' +
+  'C340,295 505,270 498,365 C490,450 250,440 250,520 ' +
+  'C250,560 300,570 350,575 C410,580 442,620 440,680 ' +
+  'C438,750 370,795 300,792 C235,789 198,730 196,668 ' +
+  'C194,655 193,645 195,632 C197,608 190,600 172,600 ' +
+  'C154,600 150,612 150,628 C150,680 150,730 160,780 ' +
+  'C175,835 260,860 360,875 ' +
+  'C410,880 445,905 443,945 C441,985 400,1005 365,995 ' +
+  'C330,985 322,945 335,915 C343,905 352,903 370,905 ' +
+  'C390,905 392,918 390,930 C388,960 380,985 372,1010 ' +
+  'C365,1070 340,1120 300,1190';
 
-/** Mobile slide: gentler swing, same top-to-bottom journey. */
+/**
+ * Mobile journey: same seven-movement topology, redrawn — not rescaled — for
+ * a 390-wide stage. Narrower x-band, tighter bend radii, and smaller loops
+ * (large ring ~210 wide, small ring ~90 wide) so nothing overflows
+ * horizontally and the loops stay readable in a tall viewport.
+ */
 const PATH_MOBILE =
-  'M300,10 C320,180 420,260 400,420 ' +
-  'C380,580 220,640 240,800 ' +
-  'C255,930 280,1050 300,1190';
+  'M300,10 C302,100 340,150 335,220 ' +
+  'C330,290 420,300 415,380 C410,450 265,450 265,520 ' +
+  'C265,555 300,562 340,566 C385,570 405,600 404,645 ' +
+  'C403,695 355,720 305,718 C260,716 232,680 231,635 ' +
+  'C230,625 230,618 231,608 C232,592 226,586 212,586 ' +
+  'C198,586 195,596 195,608 C195,655 195,700 202,745 ' +
+  'C212,795 270,815 340,828 ' +
+  'C375,833 398,850 397,880 C396,910 365,923 340,915 ' +
+  'C315,907 310,880 320,860 C327,852 333,851 345,852 ' +
+  'C360,852 361,862 360,871 C359,895 355,915 350,935 ' +
+  'C345,1010 325,1100 300,1190';
 
 /** Orb diameter as a fraction of the slide width (resolution-independent). */
 const ORB_DIAMETER_FRACTION = 0.09;
@@ -56,6 +85,15 @@ const ORB_DIAMETER_FRACTION = 0.09;
  * whole slide shrunk at once. Purely relative — no viewport pixel constants.
  */
 const CAMERA_ZOOM = 1.6;
+/**
+ * Horizontal focal-tracking gain. The vertical pan stays a strict linear
+ * function of scroll progress (top at p=0, bottom at p=1); horizontally the
+ * camera only leans toward the orb's x-swing at half strength so wide sweeps
+ * and loops read with surrounding context instead of snapping left/right.
+ * Pure function of (progress, orb-x): no state, no timers — reverse scroll
+ * retraces exactly and fast flings land on the matching frame.
+ */
+const HORIZONTAL_TRACKING = 0.5;
 /**
  * Handoff veil: the last stretch of scroll blends the black stage toward the
  * story background so Chapter 01 doesn't arrive as a hard black/white cut.
@@ -102,7 +140,8 @@ function applyCamera(refs: SlideRefs, progress: number, fx: number): void {
   const ty = maxPanY * (1 - 2 * p);
   // Horizontal: gentle focal tracking of the orb's x-swing, clamped to
   // coverage (zero on wide viewports where the scaled track is narrower).
-  const wantX = -(fx - 0.5) * scaledW;
+  // Damped to half strength so loops read with context instead of snapping.
+  const wantX = -(fx - 0.5) * scaledW * HORIZONTAL_TRACKING;
   const tx = Math.min(maxPanX, Math.max(-maxPanX, wantX));
   track.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${CAMERA_ZOOM})`;
 }
@@ -136,7 +175,6 @@ function useSlideGeometry(
       const fx = point.x / VIEW_W;
       const fy = point.y / VIEW_H;
       orb.style.left = `${(fx * 100).toFixed(2)}%`;
-      orb.style.top = `${(fy * 100).toFixed(2)}%`;
       orb.style.top = `${(fy * 100).toFixed(2)}%`;
       const speckle = refs.speckle.current;
       if (speckle) {
