@@ -56,11 +56,19 @@ const GuidedTourOverlay: React.FC<GuidedTourOverlayProps> = ({
         transition: reducedMotion ? 'none' : 'opacity 240ms ease-out',
       }}
     >
-      <svg width={vw} height={vh} className="block">
+      <svg width={vw} height={vh} className="pointer-events-none block">
         <path
           d={`M 0 0 H ${vw} V ${vh} H 0 Z ${hole}`}
           fill="rgba(4, 4, 10, 0.68)"
           fillRule="evenodd"
+          /*
+           * Hit-testing follows the paint: the darkened region swallows
+           * clicks (blocking unrelated controls), while the evenodd hole
+           * is unpainted so the real target underneath receives the
+           * user's pointer event directly. No z-index changes, no clones,
+           * no synthetic clicks — stacking contexts stay untouched.
+           */
+          style={{ pointerEvents: 'auto' }}
         />
       </svg>
       {/* Glow ring around the cutout: shape + text label, never color alone. */}

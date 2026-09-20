@@ -411,7 +411,7 @@ const GuidedTour: React.FC = () => {
       : null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[90]">
+    <div className="pointer-events-none fixed inset-0 z-[90]">
       {targetRect && (
         <GuidedTourOverlay
           target={targetRect}
