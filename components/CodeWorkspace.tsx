@@ -54,7 +54,7 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     }, [consoleTabSignal]);
 
     return (
-        <div className="flex flex-col h-full gap-4">
+        <div data-tour="code-editor" className="flex flex-col h-full gap-4">
             <div className="flex-[2] min-h-0 bg-zinc-900/40 backdrop-blur-md rounded-[1.5rem] border border-white/5 overflow-hidden shadow-xl flex flex-col relative group">
                 {/* Editor Header decoration */}
                 <div className="h-1 w-full bg-gradient-to-r from-orange-500/20 to-purple-500/20"></div>

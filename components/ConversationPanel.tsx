@@ -245,7 +245,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
                         </div>
 
                         {/* Voice controls: the orb replaces the microphone button. */}
-                        <div className="p-4 border-t border-white/5 bg-black/20 flex-shrink-0">
+                        <div data-tour="voice-tutor" className="p-4 border-t border-white/5 bg-black/20 flex-shrink-0">
                             <div className="flex flex-col items-center gap-3">
                                 <TutorOrb state={orbState} onToggle={handleMicClick} size={196} />
 

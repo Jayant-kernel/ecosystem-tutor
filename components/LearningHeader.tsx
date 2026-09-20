@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { View } from '../App';
 import ThemeToggle from './ThemeToggle';
+import GuidedTourTrigger from './guided-tour/GuidedTourTrigger';
 
 interface LearningHeaderProps {
     lessonTitle: string;
@@ -37,7 +38,9 @@ const LearningHeader: React.FC<LearningHeaderProps> = ({ lessonTitle, courseTitl
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
                 <ThemeToggle className="size-8 p-1" />
+                <GuidedTourTrigger />
                 <button
+                    data-tour="reference-guide"
                     onClick={() => navigateTo('explanations')}
                     className="flex-shrink-0 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-xs md:text-sm font-bold text-zinc-300 hover:text-white transition-all flex items-center gap-2"
                 >

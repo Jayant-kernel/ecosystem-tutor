@@ -88,7 +88,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
           </p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div data-tour="courses" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {allCourses.map((course, index) => (
             <div
               key={course.id}
@@ -114,7 +114,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
                           {course.level}
                         </span>
                         {course.badge ? (
-                          <span className="px-3 py-1 rounded-full bg-lime-300/10 border border-lime-300/30 text-xs font-bold text-lime-300 uppercase tracking-wider">
+                          <span data-tour="dynamic-course" className="px-3 py-1 rounded-full bg-lime-300/10 border border-lime-300/30 text-xs font-bold text-lime-300 uppercase tracking-wider">
                             {course.badge}
                           </span>
                         ) : null}
@@ -139,6 +139,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ navigateTo, activeCourseId })
                 {course.isActive ? (
                   <div className="space-y-3 relative z-10">
                     <button
+                      data-tour={index === 0 ? 'course-card' : undefined}
                       onClick={() => navigateTo('lesson', course.id)}
                       className="w-full py-3.5 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-lg hover:shadow-orange-500/25 transform hover:scale-[1.02] transition-all flex items-center justify-center group/btn"
                     >

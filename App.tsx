@@ -9,6 +9,9 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { GuidedTourProvider } from './components/guided-tour/GuidedTourContext';
+import GuidedTour from './components/guided-tour/GuidedTour';
+import GuidedTourPrompt from './components/guided-tour/GuidedTourPrompt';
 
 export type View = 'landing' | 'courses' | 'lesson' | 'explanations';
 
@@ -71,12 +74,16 @@ const App: React.FC = () => {
     return (
         <ThemeProvider>
             <AuthProvider>
-                <MainApp />
-                {showLaptopLab ? (
+                <GuidedTourProvider>
+                    <MainApp />
+                    <GuidedTour />
+                    <GuidedTourPrompt />
+                    {showLaptopLab ? (
                     <Suspense fallback={null}>
                         <LaptopLab />
                     </Suspense>
                 ) : null}
+                </GuidedTourProvider>
             </AuthProvider>
         </ThemeProvider>
     );
