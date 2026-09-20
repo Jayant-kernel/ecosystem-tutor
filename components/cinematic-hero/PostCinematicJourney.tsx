@@ -7,7 +7,7 @@ import {
   useTransform,
   type MotionValue,
 } from 'framer-motion';
-import { scrollTarget } from '../scroll-story/story';
+import { scrollTarget, STORY } from '../scroll-story/story';
 
 /**
  * Post-cinematic slide journey. This section begins exactly where the hero
@@ -20,6 +20,13 @@ import { scrollTarget } from '../scroll-story/story';
  * no timer, and no animation loop. Reverse scrolling retraces the path
  * exactly. The orb follows real arc length (`getPointAtLength`) and rolls
  * physically (rotation = arc / radius).
+ *
+ * Handoff model: orb progress maps 1:1 to section progress (p=1 → orb at
+ * the path's bottom-center exit), the camera pans linearly with the same
+ * progress (top of track at p=0, bottom at p=1 — no stall zones), and a
+ * restrained veil blends the black stage into the story background over the
+ * final stretch. Chapter 01's path enters top-center, so the two read as
+ * one continuous track with essentially zero dead scroll.
  */
 
 const VIEW_W = 600;
@@ -49,9 +56,16 @@ const ORB_DIAMETER_FRACTION = 0.09;
  * whole slide shrunk at once. Purely relative — no viewport pixel constants.
  */
 const CAMERA_ZOOM = 1.6;
-/** Viewport-space focal point for the orb (fractions of the sticky stage). */
-const FOCAL_X = 0.5;
-const FOCAL_Y = 0.44;
+/**
+ * Handoff veil: the last stretch of scroll blends the black stage toward the
+ * story background so Chapter 01 doesn't arrive as a hard black/white cut.
+ * Restrained single gradient, scroll-driven, fully reversible. Capped below
+ * full opacity so the orb stays visible as it sinks into the light — the
+ * actual story background takes over exactly at the section boundary.
+ */
+const VEIL_START = 0.78;
+const VEIL_END = 0.97;
+const VEIL_MAX = 0.88;
 
 interface SlideRefs {
   desktop: React.RefObject<SVGPathElement | null>;
@@ -62,7 +76,7 @@ interface SlideRefs {
   track: React.RefObject<HTMLDivElement | null>;
 }
 
-function applyCamera(refs: SlideRefs, fx: number, fy: number): void {
+function applyCamera(refs: SlideRefs, progress: number, fx: number): void {
   const track = refs.track.current;
   const stage = refs.stage.current;
   if (!track || !stage) return;
@@ -79,12 +93,17 @@ function applyCamera(refs: SlideRefs, fx: number, fy: number): void {
   // cover the stage, so clamp the pan to ±(scaled - stage)/2 on each axis.
   const maxPanX = Math.max(0, (scaledW - stageW) / 2);
   const maxPanY = Math.max(0, (scaledH - stageH) / 2);
-  // Orb offset from the track center in scaled pixels, plus the focal bias
-  // (focal sits slightly above stage center so the path ahead stays visible).
-  const wantX = (FOCAL_X - 0.5) * stageW - (fx - 0.5) * scaledW;
-  const wantY = (FOCAL_Y - 0.5) * stageH - (fy - 0.5) * scaledH;
+  const p = Math.min(1, Math.max(0, progress));
+  // Vertical pan is a strict linear function of section progress: top of the
+  // track at p=0, bottom at p=1. No clamp saturation mid-range, so EVERY
+  // scroll increment visibly moves the composition — no frozen intervals.
+  // The orb still rides real arc length, so it drifts within the moving
+  // window and stays readable throughout.
+  const ty = maxPanY * (1 - 2 * p);
+  // Horizontal: gentle focal tracking of the orb's x-swing, clamped to
+  // coverage (zero on wide viewports where the scaled track is narrower).
+  const wantX = -(fx - 0.5) * scaledW;
   const tx = Math.min(maxPanX, Math.max(-maxPanX, wantX));
-  const ty = Math.min(maxPanY, Math.max(-maxPanY, wantY));
   track.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${CAMERA_ZOOM})`;
 }
 
@@ -118,16 +137,17 @@ function useSlideGeometry(
       const fy = point.y / VIEW_H;
       orb.style.left = `${(fx * 100).toFixed(2)}%`;
       orb.style.top = `${(fy * 100).toFixed(2)}%`;
+      orb.style.top = `${(fy * 100).toFixed(2)}%`;
       const speckle = refs.speckle.current;
       if (speckle) {
         const orbRadiusUnits = (ORB_DIAMETER_FRACTION / 2) * VIEW_W;
         const rollDeg = ((clamped * total) / Math.max(1e-6, orbRadiusUnits)) * (180 / Math.PI);
         speckle.style.transform = `rotate(${rollDeg.toFixed(1)}deg)`;
       }
-      // Same scroll input re-maps the orb's track-space point into the
-      // sticky viewport: the stage pans (clamped to coverage) so the orb
-      // stays readable instead of drifting outside the useful viewport.
-      applyCamera(refs, fx, fy);
+      // Same scroll input re-maps the track into the sticky viewport: the
+      // stage pans linearly with progress so the orb stays readable instead
+      // of drifting outside the useful viewport.
+      applyCamera(refs, clamped, fx);
     } catch {
       // Geometry unavailable — orb stays parked.
     }
@@ -205,6 +225,11 @@ export function PostCinematicJourney(): JSX.Element {
   const draw = reduce ? filled : scrollYProgress;
   const parked = useTransform(scrollYProgress, () => 0);
   const orbProgress = reduce ? parked : scrollYProgress;
+  // Handoff veil: black stage breathes into the story background over the
+  // final stretch of scroll. Same progress input, pure style mapping.
+  const veilEmpty = useTransform(scrollYProgress, () => 0);
+  const veilFull = useTransform(scrollYProgress, [VEIL_START, VEIL_END], [0, VEIL_MAX]);
+  const veilOpacity = reduce ? veilEmpty : veilFull;
   const refs: SlideRefs = {
     desktop: desktopRef,
     mobile: mobileRef,
@@ -271,6 +296,22 @@ export function PostCinematicJourney(): JSX.Element {
             </div>
           </div>
         </div>
+        {/*
+          Handoff veil: over the final stretch the black stage breathes into
+          the story background (same token Chapter 01 uses), so the orb sinks
+          toward the light and Chapter 01 arrives as a continuation rather
+          than a hard black/white cut. The post path exits bottom-center and
+          the Chapter 01 path enters top-center — one conceptual track.
+        */}
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0"
+          style={{
+            height: '58%',
+            opacity: veilOpacity,
+            background: `linear-gradient(to bottom, rgba(244,243,238,0) 0%, ${STORY.bg} 78%)`,
+          }}
+        />
       </div>
     </section>
   );
