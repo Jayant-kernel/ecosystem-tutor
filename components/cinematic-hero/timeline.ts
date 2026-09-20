@@ -43,9 +43,12 @@ export const TIMELINE: TimelineConfig = {
    * wheel flick could cross it before the damped camera arrived, making the
    * sequence feel skipped. 520vh stretches every beat ~31% (handoff ≈500px+)
    * so aggressive scrolls land mid-sequence with travel remaining instead of
-   * at the exit. Pure input gain: all `t` mappings below are unchanged.
+   * at the exit. 650vh adds a cosmic-act tail after the handoff: every
+   * mapping below is in normalized `t`, so the laptop beats keep their exact
+   * choreography and only gain travel. Pure input gain: all `t` mappings
+   * below are unchanged.
    */
-  runwayViewportHeights: 5.2,
+  runwayViewportHeights: 6.5,
   lidStartDistance: 8.0,
   lidFullOpenDistance: 7.0,
   displayFillStartT: 0.9,
@@ -60,6 +63,28 @@ export const TIMELINE: TimelineConfig = {
 
 /** Exponential-damping rate used by the camera rig. Higher values feel snappier. */
 export const CAMERA_DAMP_LAMBDA = 3.4;
+
+/**
+ * Cosmic-act windows (normalized film time `t`). After the handoff panel has
+ * fully assembled, it exits over PANEL_EXIT_* to reveal the space act living
+ * in the same canvas; the cosmic environment assembles over COSMIC_*.
+ * Additive only: every window below starts at or after the handoff lock, so
+ * no laptop-act frame changes.
+ */
+export const COSMIC_REVEAL_START = 0.9;
+export const COSMIC_REVEAL_END = 1.0;
+export const PANEL_EXIT_START = 0.94;
+export const PANEL_EXIT_END = 0.99;
+
+/** Normalized cosmic progress: 0 until the reveal starts, 1 at film end. */
+export function cosmicProgress(rawT: number): number {
+  return smoothstep(COSMIC_REVEAL_START, COSMIC_REVEAL_END, clamp01(rawT));
+}
+
+/** Handoff-panel exit: 1 while the panel owns the frame, 0 once space takes over. */
+export function panelExit(rawT: number): number {
+  return smoothstep(PANEL_EXIT_START, PANEL_EXIT_END, clamp01(rawT));
+}
 
 /** When target and current film times are closer than this, rendering stops. */
 export const RENDER_EPSILON = 0.0008;

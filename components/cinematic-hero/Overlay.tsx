@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { filmDriver } from './filmDriver';
-import { sampleTimeline, smoothstep } from './timeline';
+import { sampleTimeline, smoothstep, cosmicProgress, panelExit } from './timeline';
+import CosmicAtmosphere, { type CosmicAtmosphereHandle } from './cosmic/CosmicAtmosphere';
 
 /**
  * Handoff window: the 3D screen fades out while the DOM panel fades in over
@@ -198,6 +199,7 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
   const ctaPrimaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const ctaSecondaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const noteWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const atmosphereRef = useRef<CosmicAtmosphereHandle | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -207,7 +209,7 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
     let running = false;
     let lastSignature = '';
 
-    const tick = () => {
+    const tick = (timeMs: number) => {
       const film = sampleTimeline(filmDriver.currentT);
       const signature = `${film.t.toFixed(4)}|${filmDriver.targetT.toFixed(4)}`;
       if (signature !== lastSignature) {
@@ -231,7 +233,11 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
         // just after. Each word scatters independently and converges to the
         // exact layout — the assembled page matches the hero copy precisely.
         // All pure in t — reverse is the exact inverse.
-        setFade(panelRef.current, panel, 0, true);
+        // Cosmic tail (additive, past every validated window): once the panel
+        // has fully assembled it exits over PANEL_EXIT_*, yielding the frame
+        // to the space act. Below PANEL_EXIT_START this factor is exactly 1,
+        // so no earlier frame changes.
+        setFade(panelRef.current, panel * (1 - panelExit(t)), 0, true);
         const eyebrow = smoothstep(0.64, 0.74, t);
         setFade(eyebrowRef.current, eyebrow);
         scatterWords(eyebrowWordRefs.current, SEEDS.eyebrow, t, 0);
@@ -254,9 +260,18 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
         const canvasFade = smoothstep(HANDOFF_START + 0.02, HANDOFF_END + 0.03, t);
         const canvasWrap = canvasWrapRef.current;
         if (canvasWrap) {
-          canvasWrap.style.opacity = (1 - canvasFade).toFixed(3);
-          canvasWrap.style.visibility = canvasFade >= 0.99 ? 'hidden' : 'visible';
+          // Cosmic tail (additive): the canvas fades back in exactly as the
+          // panel exits, revealing the space act in the same WebGL context.
+          // Below PANEL_EXIT_START cosmicIn is 0, so every earlier frame is
+          // byte-identical to before.
+          const cosmicIn = panelExit(t);
+          const canvasOpacity = Math.max(1 - canvasFade, cosmicIn);
+          canvasWrap.style.opacity = canvasOpacity.toFixed(3);
+          canvasWrap.style.visibility = canvasOpacity <= 0.01 ? 'hidden' : 'visible';
         }
+
+        // 2D cosmic atmosphere follows the same film time (no separate loop).
+        atmosphereRef.current?.paint(cosmicProgress(t), timeMs);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -284,14 +299,23 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
     } else {
       start();
     }
+    const handleResize = (): void => {
+      atmosphereRef.current?.resize();
+    };
+    window.addEventListener('resize', handleResize);
     return () => {
       stop();
       io?.disconnect();
+      window.removeEventListener('resize', handleResize);
     };
   }, [canvasWrapRef]);
 
   return (
     <div ref={rootRef} className="absolute inset-0 z-10">
+      {/* Cosmic-act atmosphere: decorative DOM layers (nebula, rocks, dust)
+          painted from the same film tick. First in DOM so the handoff panel
+          always covers it; invisible until the cosmic reveal window. */}
+      <CosmicAtmosphere ref={atmosphereRef} />
       {/* Static cinematic vignette (pure CSS, zero GPU loop cost). */}
       <div
         aria-hidden="true"

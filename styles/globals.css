@@ -667,3 +667,13 @@ html.light .bg-white\/10 {
 .visual-tutor-pointer.is-grabbing .visual-tutor-pointer__trail{opacity:0}
 @media (max-width:640px){.visual-tutor-canvas{min-height:340px;border-radius:18px}.visual-tutor-canvas__topbar{padding:14px}.visual-tutor-canvas__tools>button:not(.visual-tutor-canvas__close),.visual-tutor-canvas__tools span{display:none}.visual-workspace-switch{top:9px;right:10px}}
 @media (prefers-reduced-motion: reduce){.teaching-node.is-active .teaching-node__ring,.visual-tutor-pointer__spark{animation:none}}
+
+/* Cosmic space act: slow ambient drift for SVG meteoroids (entrance transform
+lives on the outer wrapper; this animates only the inner element) and dust
+twinkle. Both are pure CSS so they never fight the film-driven JS transforms. */
+@keyframes rock-drift{from{transform:translate3d(0,0,0) rotate(0deg)}to{transform:translate3d(0,-7px,0) rotate(1.1deg)}}
+@keyframes dust-twinkle{0%,100%{transform:scale(.78);opacity:.42}50%{transform:scale(1.18);opacity:1}}
+/* Cinematic hero mobile: fewer rocks, same identity. */
+@media (max-width: 640px){
+  .rock--bg{display:none}
+}

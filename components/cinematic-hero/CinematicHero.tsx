@@ -48,9 +48,21 @@ const CinematicHero: React.FC<CinematicHeroProps> = ({ navigateTo, screenContent
     return (
       <section
         aria-label="Ecosystem intro"
-        className="relative flex min-h-screen items-center justify-center bg-black px-6 py-24 text-center"
+        className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 py-24 text-center"
       >
-        <div className="max-w-3xl">
+        {/* Static deep-space backdrop for reduced motion: settled gradients
+            only, no canvas, no animation — same copy and CTA as before. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 45% at 50% 40%, rgba(30,41,82,0.5) 0%, transparent 65%),' +
+              'radial-gradient(ellipse 34% 24% at 50% 46%, rgba(249,115,22,0.10) 0%, transparent 70%),' +
+              'radial-gradient(ellipse 90% 70% at 50% 110%, rgba(10,16,36,0.8) 0%, transparent 70%)',
+          }}
+        />
+        <div className="relative max-w-3xl">
           <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
             Ecosystem
           </p>
