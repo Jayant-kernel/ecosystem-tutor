@@ -5,10 +5,8 @@ import {
   dustLevel,
   emberGlow,
   nebulaLevel,
-  rocksLevel,
 } from '../cosmicProgress';
 import DustLayer, { type DustLayerHandle } from './DustLayer';
-import RockLayer, { type RockLayerHandle } from './RockLayer';
 
 export interface CosmicAtmosphereHandle {
   /**
@@ -24,18 +22,18 @@ export interface CosmicAtmosphereHandle {
 }
 
 /**
- * DOM atmosphere for the space act: fluid nebula canvas, SVG meteoroids,
- * sparse dust, ember glow, and a readability contrast field. All layers are
- * decorative, pointer-transparent, and stacked BELOW the handoff panel, so
- * the laptop act (t < reveal) renders pixel-identically with or without it.
+ * DOM atmosphere for the space act: starfield canvas, sparse dust, ember
+ * glow, and a readability contrast field. The only space rocks rendered are
+ * the GLB asteroids inside the WebGL canvas — no static rock layer exists.
+ * All layers are decorative, pointer-transparent, and stacked BELOW the
+ * handoff panel, so the laptop act (t < reveal) renders pixel-identically
+ * with or without it.
  */
 const CosmicAtmosphere = forwardRef<CosmicAtmosphereHandle>(function CosmicAtmosphere(_, ref) {
   const glowRef = useRef<HTMLDivElement | null>(null);
   const contrastRef = useRef<HTMLDivElement | null>(null);
-  const rocksWrapRef = useRef<HTMLDivElement | null>(null);
   const nebulaCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const nebulaRef = useRef<NebulaRenderer | null>(null);
-  const rocksRef = useRef<RockLayerHandle | null>(null);
   const dustRef = useRef<DustLayerHandle | null>(null);
   const lastNebulaPaintAt = useRef(Number.NEGATIVE_INFINITY);
 
@@ -63,7 +61,6 @@ const CosmicAtmosphere = forwardRef<CosmicAtmosphereHandle>(function CosmicAtmos
       if (contrast) {
         contrast.style.opacity = contrastLevel(p).toFixed(3);
       }
-      rocksRef.current?.setProgress(rocksLevel(p));
       dustRef.current?.setProgress(dustLevel(p));
       const nebula = nebulaRef.current;
       if (nebula) {
@@ -89,12 +86,8 @@ const CosmicAtmosphere = forwardRef<CosmicAtmosphereHandle>(function CosmicAtmos
 
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[1]">
-      {/* Fluid nebula environment (2D canvas, intensity + reveal from p). */}
+      {/* Starfield canvas (intensity + reveal from p). */}
       <canvas ref={nebulaCanvasRef} className="absolute inset-0 h-full w-full" />
-      {/* Hand-authored SVG meteoroids assembling from the edges. */}
-      <div ref={rocksWrapRef} className="absolute inset-0">
-        <RockLayer ref={rocksRef} />
-      </div>
       {/* Sparse atmospheric dust, kept clear of the headline zone. */}
       <div className="absolute inset-0">
         <DustLayer ref={dustRef} />

@@ -312,7 +312,7 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
 
   return (
     <div ref={rootRef} className="absolute inset-0 z-10">
-      {/* Cosmic-act atmosphere: decorative DOM layers (nebula, rocks, dust)
+      {/* Cosmic-act atmosphere: decorative DOM layers (starfield, dust)
           painted from the same film tick. First in DOM so the handoff panel
           always covers it; invisible until the cosmic reveal window. */}
       <CosmicAtmosphere ref={atmosphereRef} />
