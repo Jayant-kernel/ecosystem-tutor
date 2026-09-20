@@ -338,7 +338,7 @@ export default function Overlay({ navigateTo }: OverlayProps): JSX.Element {
             <button
               type="button"
               onClick={() => navigateTo('courses')}
-              className="rounded-full border border-violet-100/80 bg-violet-50 px-8 py-3.5 text-[12px] font-bold uppercase tracking-[0.16em] text-violet-950 shadow-[0_0_28px_rgba(196,181,253,0.26)] transition-colors hover:bg-violet-200"
+              className="rounded-full border border-violet-100/80 bg-violet-50 px-10 py-4 text-[14px] font-bold uppercase tracking-[0.16em] text-violet-950 shadow-[0_0_42px_rgba(196,181,253,0.58)] transition-all hover:bg-violet-200 hover:shadow-[0_0_52px_rgba(196,181,253,0.72)]"
             >
               {WORDS.ctaPrimary.map((word, i) => (
                 <Fragment key={`cta-primary-${i}`}>
@@ -355,7 +355,7 @@ export default function Overlay({ navigateTo }: OverlayProps): JSX.Element {
               ))}
             </button>
           </div>
-          <p ref={noteRef} className="mx-auto mt-8 inline-flex w-fit rounded-full bg-white px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.2em] text-violet-900 shadow-sm">
+          <p ref={noteRef} className="mx-auto mt-8 inline-flex w-fit rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-900 shadow-sm">
             {WORDS.note.map((word, i) => (
               <Fragment key={`note-${i}`}>
                 <span
