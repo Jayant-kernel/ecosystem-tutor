@@ -355,7 +355,7 @@ export default function Overlay({ navigateTo }: OverlayProps): JSX.Element {
               ))}
             </button>
           </div>
-          <p ref={noteRef} className="mt-8 text-[11px] uppercase tracking-[0.2em] text-zinc-600">
+          <p ref={noteRef} className="mt-8 text-[11px] font-semibold uppercase tracking-[0.2em] text-black">
             {WORDS.note.map((word, i) => (
               <Fragment key={`note-${i}`}>
                 <span

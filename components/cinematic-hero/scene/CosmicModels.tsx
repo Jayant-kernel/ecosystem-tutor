@@ -22,9 +22,9 @@ const EARTH_TOP_Y = -0.2;
 // with the centre of the screen.
 const EARTH_POSITION: [number, number, number] = [-14, EARTH_TOP_Y - EARTH_RADIUS, -1.15];
 const EARTH_ROTATION: [number, number, number] = [0, 0, 0];
-// Whole-disc purple: multiplies the satellite diffuse so oceans + land read
-// violet while keeping texture detail.
-const EARTH_PURPLE_TINT = '#9d6bff';
+// Neutral white preserves the source satellite texture's natural ocean and
+// land colours without applying a stylized tint.
+const EARTH_TEXTURE_TINT = '#ffffff';
 
 interface AsteroidPlacement {
   name: string;
@@ -91,18 +91,16 @@ function cloneCentered(source: THREE.Object3D, name: string, targetRadius: numbe
 }
 
 /** The supplied Earth uses KHR_materials_pbrSpecularGlossiness. Rendering its
- * diffuse map unlit keeps the real satellite texture crisp through the violet
- * atmosphere. The whole disc is tinted purple per design: the violet color
- * multiplies the diffuse map so land + oceans read purple, not blue/green.
- * A null texture (download failed) falls back to flat purple. */
+ * diffuse map unlit keeps the natural satellite texture crisp. A null texture
+ * falls back to a neutral blue surface. */
 function cloneEarth(source: THREE.Object3D, diffuseMap: THREE.Texture | null): THREE.Object3D {
   const earth = source.clone(true);
   if (diffuseMap) diffuseMap.colorSpace = THREE.SRGBColorSpace;
   earth.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     child.material = diffuseMap
-      ? new THREE.MeshBasicMaterial({ map: diffuseMap, color: EARTH_PURPLE_TINT, fog: true })
-      : new THREE.MeshBasicMaterial({ color: '#6d28d9', fog: true });
+      ? new THREE.MeshBasicMaterial({ map: diffuseMap, color: EARTH_TEXTURE_TINT, fog: true })
+      : new THREE.MeshBasicMaterial({ color: '#1d4ed8', fog: true });
   });
   fitToRadius(earth, EARTH_RADIUS);
   return earth;
