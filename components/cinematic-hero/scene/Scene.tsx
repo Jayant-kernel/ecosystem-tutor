@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { Suspense, useEffect, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import BackdropText from './BackdropText';
 import CameraRig from './CameraRig';
 import RiggedLaptop from './RiggedLaptop';
+import CosmicModels from './CosmicModels';
 import type { VoiceScreenContent } from './VoiceScreen';
+import { filmDriver } from '../filmDriver';
+import { TIMELINE } from '../timeline';
 
 /**
  * Local studio reflections for the laptop's near-black PBR body.
@@ -52,6 +55,32 @@ function StudioEnvironment({ intensity = 0.5 }: { intensity?: number }): null {
   return null;
 }
 
+/** The laptop act exits after the DOM panel owns the frame; the canvas stays
+ * mounted so its space act can take over without a white flash or a second
+ * WebGL context. */
+function LaptopAct({ screenContent }: { screenContent?: VoiceScreenContent }): JSX.Element {
+  const ref = useRef<THREE.Group | null>(null);
+
+  useFrame(() => {
+    if (ref.current) ref.current.visible = filmDriver.currentT < TIMELINE.handoffEndT + 0.015;
+  });
+
+  return (
+    <group ref={ref}>
+      <BackdropText />
+      <RiggedLaptop content={screenContent} />
+      {/* Studio floor: grounds the laptop product shot ONLY. It rides with
+          the laptop act so that once the film hands off, the set floor exits
+          with it and can never occlude the space act (Earth horizon sits
+          below floor level by design). */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.135, 0]}>
+        <planeGeometry args={[40, 40]} />
+        <meshBasicMaterial color="#0a0a0e" />
+      </mesh>
+    </group>
+  );
+}
+
 /**
  * Cinematic scene shell: studio/product lighting for the real laptop, the
  * film-driven camera rig, and the rigged laptop. No decorative loops, no
@@ -63,13 +92,6 @@ export default function Scene({ screenContent }: { screenContent?: VoiceScreenCo
       <color attach="background" args={['#050505']} />
       {/* Environmental depth: floor edges dissolve into the background (negligible at film distances). */}
       <fogExp2 attach="fog" args={['#050505', 0.022]} />
-      {/* Grounding: an unlit near-black floor just beneath the base. Unlit on
-          purpose — studio lights are for the laptop only, so the floor keeps
-          an exact value and dissolves into the background via fog. */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.135, 0]}>
-        <planeGeometry args={[40, 40]} />
-        <meshBasicMaterial color="#0a0a0e" />
-      </mesh>
       {/* Image-based form for the black PBR body (see StudioEnvironment). */}
       <StudioEnvironment intensity={0.5} />
       {/* Ambient base kept low so the environment carries form without flattening. */}
@@ -81,10 +103,13 @@ export default function Scene({ screenContent }: { screenContent?: VoiceScreenCo
       {/* Rim: cool back-left, raised — separates the black lid silhouette from
           the black background and grazes the lid edges, hinge and bevels. */}
       <directionalLight position={[-4, 4, -5]} intensity={2.2} color="#cfe0ff" />
-      {/* Backdrop copy, physically behind the laptop (occluded by the screen). */}
-      <BackdropText />
       <CameraRig />
-      <RiggedLaptop content={screenContent} />
+      <LaptopAct screenContent={screenContent} />
+      {/* Loads independently, so the real laptop can start before the two GLBs
+          have arrived. */}
+      <Suspense fallback={null}>
+        <CosmicModels />
+      </Suspense>
     </>
   );
 }

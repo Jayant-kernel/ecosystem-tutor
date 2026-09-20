@@ -19,6 +19,16 @@ body {
     font-family: 'Geist', sans-serif !important;
 }
 
+/* Hero-only display face: wide, precise and softly luminous, inspired by the
+   supplied Quantum reference without changing the application's body type. */
+.font-quantum {
+    font-family: 'Michroma', 'Manrope', sans-serif;
+}
+
+.quantum-hero-title {
+    text-shadow: 0 0 14px rgba(237, 233, 254, 0.26), 0 0 38px rgba(139, 92, 246, 0.16);
+}
+
 /* Animation Keyframe: Content Fade In */
 @keyframes fadeSlideIn {
     0% {
@@ -657,5 +667,17 @@ html.light .bg-white\/10 {
 @keyframes visual-grab{0%{transform:rotate(-17deg) scale(1)}40%{transform:rotate(-8deg) scale(.86)}100%{transform:rotate(-17deg) scale(1)}}
 .visual-tutor-pointer__trail{position:absolute;left:-26px;top:18px;width:26px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(34,211,238,.55));opacity:.85}
 .visual-tutor-pointer.is-grabbing .visual-tutor-pointer__trail{opacity:0}
+/* Cinematic hero: slow ambient drift for cosmic rock sprites. The entrance
+transform lives on the outer wrapper; this animates only the inner element. */
+@keyframes rock-drift{from{transform:translate3d(0,0,0) rotate(0deg)}to{transform:translate3d(0,-7px,0) rotate(1.1deg)}}
+@keyframes dust-twinkle{0%,100%{transform:scale(.78);opacity:.42}50%{transform:scale(1.18);opacity:1}}
+@keyframes planet-breathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,calc(-50% - 8px)) scale(1.004)}}
+@media (prefers-reduced-motion: reduce){.planet-halo{animation:none!important}}
+/* Cinematic hero mobile: fewer rocks, same identity. */
+@media (max-width: 640px){
+  .rock--bg{display:none}
+}
+/* Reduced-motion poster: settled state only, no ambient animation. */
+.cosmic-poster *{animation:none!important}
 @media (max-width:640px){.visual-tutor-canvas{min-height:340px;border-radius:18px}.visual-tutor-canvas__topbar{padding:14px}.visual-tutor-canvas__tools>button:not(.visual-tutor-canvas__close),.visual-tutor-canvas__tools span{display:none}.visual-workspace-switch{top:9px;right:10px}}
 @media (prefers-reduced-motion: reduce){.teaching-node.is-active .teaching-node__ring,.visual-tutor-pointer__spark{animation:none}}

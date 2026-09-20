@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react';
-import type { RefObject } from 'react';
 import { filmDriver } from './filmDriver';
-import { sampleTimeline, smoothstep } from './timeline';
+import { sampleTimeline, smoothstep, SCATTER_START, SCATTER_END, TIMELINE } from './timeline';
 
 /**
  * Handoff window: the 3D screen fades out while the DOM panel fades in over
@@ -9,37 +8,11 @@ import { sampleTimeline, smoothstep } from './timeline';
  * progress, identical forward and reverse. The canvas lags the panel slightly
  * so no background edge or bezel can flash through mid-blend.
  */
-const HANDOFF_START = 0.62;
-const HANDOFF_END = 0.78;
-
-const showDebugUi = (import.meta as any).env?.DEV === true;
+const HANDOFF_START = TIMELINE.handoffStartT;
+const HANDOFF_END = TIMELINE.handoffEndT;
 
 interface OverlayProps {
   navigateTo: (view: 'courses') => void;
-  canvasWrapRef: RefObject<HTMLDivElement | null>;
-}
-
-function FilmDebugReadout(): JSX.Element {
-  const readoutRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      const el = readoutRef.current;
-      if (!el) return;
-      const film = sampleTimeline(filmDriver.currentT);
-      el.textContent =
-        `t ${film.t.toFixed(3)} · target ${filmDriver.targetT.toFixed(3)} · ` +
-        `dist ${film.cameraDistance.toFixed(2)} · lid ${film.lidOpen.toFixed(2)}`;
-    }, 200);
-    return () => window.clearInterval(id);
-  }, []);
-
-  return (
-    <div
-      ref={readoutRef}
-      className="pointer-events-none absolute left-4 top-24 rounded-lg border border-white/10 bg-black/70 px-3 py-2 font-mono text-[11px] leading-5 text-zinc-300"
-    />
-  );
 }
 
 function setFade(
@@ -67,9 +40,8 @@ function setFade(
  * staggered starts, one common lock point; a pure function of film time so
  * reverse scrub disassembles symmetrically. At progress 1 the transform
  * resolves to '' — pixel-identical to the layout without scatter.
+ * (Window constants live in timeline.ts so cosmic layers share them.)
  */
-const SCATTER_START = HANDOFF_START;
-const SCATTER_END = 0.95;
 
 interface ScatterSeed {
   dx: number;
@@ -105,7 +77,6 @@ const COPY = {
   headline: 'Talk. Code. Understand.',
   sub: 'An AI-powered coding companion that helps you learn concepts, debug errors, and build with confidence all through your voice.',
   ctaPrimary: 'Browse Courses',
-  ctaSecondary: 'Browse courses',
   note: 'Scroll to continue',
 } as const;
 
@@ -116,7 +87,6 @@ const WORDS: Record<CopyKey, string[]> = {
   headline: COPY.headline.split(' '),
   sub: COPY.sub.split(' '),
   ctaPrimary: COPY.ctaPrimary.split(' '),
-  ctaSecondary: COPY.ctaSecondary.split(' '),
   note: COPY.note.split(' '),
 };
 
@@ -138,7 +108,6 @@ const SEEDS: Record<CopyKey, WordSeed[]> = {
   headline: makeWordSeeds(WORDS.headline.length, 22),
   sub: makeWordSeeds(WORDS.sub.length, 33),
   ctaPrimary: makeWordSeeds(WORDS.ctaPrimary.length, 44),
-  ctaSecondary: makeWordSeeds(WORDS.ctaSecondary.length, 55),
   note: makeWordSeeds(WORDS.note.length, 66),
 };
 
@@ -182,7 +151,7 @@ function scatterWords(
  * identical `t`. A dedicated lightweight loop writes only these styles and
  * runs solely while the runway is visible.
  */
-export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JSX.Element {
+export default function Overlay({ navigateTo }: OverlayProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const hintRef = useRef<HTMLDivElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
@@ -196,7 +165,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
   const headlineWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const subWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const ctaPrimaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
-  const ctaSecondaryWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const noteWordRefs = useRef<Array<HTMLSpanElement | null>>([]);
 
   useEffect(() => {
@@ -226,7 +194,9 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
           setFade(progress, 1 - panel);
         }
 
-        // Handoff: panel fades in while the canvas fades slightly behind it.
+        // Handoff: the panel fades in while the laptop act exits inside the
+        // existing canvas. The canvas itself stays mounted for the real space
+        // models, avoiding a second WebGL context or a background flash.
         // Editorial children stagger inside the same window; the note settles
         // just after. Each word scatters independently and converges to the
         // exact layout — the assembled page matches the hero copy precisely.
@@ -247,16 +217,9 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
         const ctaDrift = (1 - ctas) * 12;
         setFade(ctaRef.current, ctas, ctaDrift);
         scatterWords(ctaPrimaryWordRefs.current, SEEDS.ctaPrimary, t, ctaDrift);
-        scatterWords(ctaSecondaryWordRefs.current, SEEDS.ctaSecondary, t, ctaDrift);
         setFade(noteRef.current, smoothstep(0.72, 0.84, t));
         scatterWords(noteWordRefs.current, SEEDS.note, t, 0);
 
-        const canvasFade = smoothstep(HANDOFF_START + 0.02, HANDOFF_END + 0.03, t);
-        const canvasWrap = canvasWrapRef.current;
-        if (canvasWrap) {
-          canvasWrap.style.opacity = (1 - canvasFade).toFixed(3);
-          canvasWrap.style.visibility = canvasFade >= 0.99 ? 'hidden' : 'visible';
-        }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -288,7 +251,7 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
       stop();
       io?.disconnect();
     };
-  }, [canvasWrapRef]);
+  }, []);
 
   return (
     <div ref={rootRef} className="absolute inset-0 z-10">
@@ -313,13 +276,16 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
 
       <div
         ref={panelRef}
-        className="absolute inset-0 flex items-center justify-center bg-[#0D0D0D] px-6 text-center"
+        // Transparent: the cosmic environment (CosmicScene, z-1) carries the
+        // backdrop now; readability comes from its contrast field, not from
+        // an opaque panel. Fade/interaction behavior unchanged.
+        className="absolute inset-0 flex items-center justify-center px-6 text-center"
         style={{ opacity: 0, visibility: 'hidden' }}
       >
         <div className="max-w-2xl">
           <p
             ref={eyebrowRef}
-            className="mb-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-500/90"
+            className="mb-5 font-quantum text-[10px] uppercase tracking-[0.22em] text-violet-200/80"
           >
             {WORDS.eyebrow.map((word, i) => (
               <Fragment key={`eyebrow-${i}`}>
@@ -337,7 +303,7 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
           </p>
           <h1
             ref={headlineRef}
-            className="mb-5 font-manrope text-4xl font-medium leading-[1.05] tracking-[-0.02em] text-white md:text-6xl"
+            className="quantum-hero-title mb-6 font-quantum text-[clamp(2rem,5vw,4.45rem)] font-normal leading-[1.3] tracking-[0.055em] text-violet-50"
           >
             {WORDS.headline.map((word, i) => (
               <Fragment key={`headline-${i}`}>
@@ -368,11 +334,11 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
               </Fragment>
             ))}
           </p>
-          <div ref={ctaRef} className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div ref={ctaRef} className="flex items-center justify-center">
             <button
               type="button"
               onClick={() => navigateTo('courses')}
-              className="rounded-full bg-white px-7 py-3.5 text-[13px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-orange-500 hover:text-white"
+              className="rounded-full border border-violet-100/80 bg-violet-50 px-8 py-3.5 text-[12px] font-bold uppercase tracking-[0.16em] text-violet-950 shadow-[0_0_28px_rgba(196,181,253,0.26)] transition-colors hover:bg-violet-200"
             >
               {WORDS.ctaPrimary.map((word, i) => (
                 <Fragment key={`cta-primary-${i}`}>
@@ -385,25 +351,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
                     {word}
                   </span>
                   {i < WORDS.ctaPrimary.length - 1 ? ' ' : null}
-                </Fragment>
-              ))}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigateTo('courses')}
-              className="rounded-full border border-white/15 px-7 py-3.5 text-[13px] font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:border-white/40 hover:text-white"
-            >
-              {WORDS.ctaSecondary.map((word, i) => (
-                <Fragment key={`cta-secondary-${i}`}>
-                  <span
-                    ref={(el) => {
-                      ctaSecondaryWordRefs.current[i] = el;
-                    }}
-                    className="inline-block"
-                  >
-                    {word}
-                  </span>
-                  {i < WORDS.ctaSecondary.length - 1 ? ' ' : null}
                 </Fragment>
               ))}
             </button>
@@ -425,8 +372,6 @@ export default function Overlay({ navigateTo, canvasWrapRef }: OverlayProps): JS
           </p>
         </div>
       </div>
-
-      {showDebugUi ? <FilmDebugReadout /> : null}
     </div>
   );
 }

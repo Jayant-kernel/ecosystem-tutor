@@ -64,6 +64,16 @@ export const CAMERA_DAMP_LAMBDA = 3.4;
 /** When target and current film times are closer than this, rendering stops. */
 export const RENDER_EPSILON = 0.0008;
 
+/**
+ * Scatter → assemble window for the handoff panel words (see Overlay).
+ * The panel children start displaced at SCATTER_START and all lock by
+ * SCATTER_END. Cosmic layers normalize this same window as their master
+ * progress (see cosmicProgress), so text and environment assemble as one
+ * reversible gesture.
+ */
+export const SCATTER_START = 0.62;
+export const SCATTER_END = 0.86;
+
 export const INITIAL_CAMERA = {
   position: [CAMERA_KEYS[0].position[0], CAMERA_KEYS[0].position[1], CAMERA_KEYS[0].position[2]] as const,
   fov: CAMERA_KEYS[0].fov,
