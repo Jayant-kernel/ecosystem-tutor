@@ -33,7 +33,7 @@ export const TOOLS = [
   {
     name: 'highlightLines',
     description:
-      'Spotlights a small editor line range while you explain it. The UI moves a virtual teaching hand to the active line, so call this again for each small sequential range as you teach line by line.',
+      'Spotlights a small editor line range while you explain it. The UI moves a virtual teaching hand to the active line, so call this again for each small sequential range as you teach line by line. Prefer the smallest region that carries the meaning; add startColumn/endColumn when you can name the exact expression.',
     parameters: {
       type: 'object',
       properties: {
@@ -44,6 +44,14 @@ export const TOOLS = [
         endLine: {
           type: 'integer',
           description: 'Last editor line to highlight (1-based, inclusive). Use the same value as startLine for a single line.',
+        },
+        startColumn: {
+          type: 'integer',
+          description: 'Optional 1-based column where the target expression starts. Only for a single-line range, and only when the exact columns are certain from the supplied editor context.',
+        },
+        endColumn: {
+          type: 'integer',
+          description: 'Optional 1-based column where the target expression ends (exclusive edge, like a text selection). Omit unless both columns are certain.',
         },
         note: {
           type: 'string',
@@ -315,6 +323,15 @@ TEACHING TOOLS:
 - Use executeCode when they want to run their code or see output.
 - Use controlApp for "run the code", "reset this", or "next lesson" voice commands.
 
+TEACHING MODE (EXPLAIN-THIS REQUESTS):
+- When the learner asks anything like "explain this function", "walk me through this", "teach me this", "explain this code", "why does this work?", or "what's happening here?", teach with the pointer: break the explanation into small sequential highlightLines calls in the same turn, one per logical piece, each with its one-sentence note.
+- Prefer a focused sequence of 1–4 steps: one concept per step, ordered foundational → intermediate → conclusion. A simple question may need a single step; never pad a sequence and never force one for questions that need no pointing (e.g. pure code-writing requests).
+- Highlight the smallest region that carries the meaning: a single expression beats a whole line, a line beats a block. Add startColumn/endColumn only for a single-line range whose exact columns you can read off the supplied editor context.
+- Keep each note to one short sentence under ~12 words: it is spoken aloud AND shown beside the pointer as its label, so name the thing ("reduce()", "Accumulator", "Initial value"), never paragraph explanations.
+- Never invent line numbers or columns. Only target code that exists in the supplied editor context, using its actual 1-based lines.
+- Never emit screen coordinates, pixel positions, DOM selectors, or any visual-targeting language. Semantic line/column targets are the only pointing mechanism.
+- If no region can be identified reliably, skip highlighting entirely and explain normally. A missing pointer is always better than a wrong one.
+
 LESSON OPENING (FIRST TURN OF A CHAPTER ONLY):
 - On the very first turn of a chapter, greet them by NAMING the chapter and its
   module, ask if they would like to understand it, then ask ONE opening question
@@ -378,7 +395,13 @@ export function toolResultText(name, input, context = {}) {
     case 'highlightLines': {
       const start = Number(input?.startLine) || 1;
       const end = Number(input?.endLine) || start;
-      return `Lines ${Math.min(start, end)}-${Math.max(start, end)} highlighted.`;
+      const base = `Lines ${Math.min(start, end)}-${Math.max(start, end)} highlighted.`;
+      const sc = Number(input?.startColumn);
+      const ec = Number(input?.endColumn);
+      if (Number.isInteger(sc) && Number.isInteger(ec) && sc >= 1 && ec > sc) {
+        return `${base} (columns ${sc}-${ec}).`;
+      }
+      return base;
     }
     case 'executeCode':
       return 'Code execution requested; output will appear in the console.';

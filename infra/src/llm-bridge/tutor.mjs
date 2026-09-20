@@ -4,7 +4,7 @@ import { createBedrockProvider } from './providers/bedrock.mjs';
 import { createGrokProvider } from './providers/grok.mjs';
 import { createGroqProvider } from './providers/groq.mjs';
 import { createOpenAIProvider } from './providers/openai.mjs';
-import { ensureDirectVisualPlan, sanitizeVisualToolCalls } from './visual.mjs';
+import { buildVisualTourText, ensureDirectVisualPlan, isDirectVisualRequest, sanitizeVisualToolCalls } from './visual.mjs';
 import { UpstreamError } from './errors.mjs';
 
 export { buildSystemPrompt, selectTools, TOOLS, THEORY_TOOLS } from './tools.mjs';
@@ -93,5 +93,9 @@ export async function generateTutorResponse({
     tools: selectTools(context.lessonMode),
   });
   const safeToolCalls = sanitizeVisualToolCalls(result.toolCalls);
-  return { ...result, toolCalls: ensureDirectVisualPlan(safeToolCalls, transcript, context) };
+  const toolCalls = ensureDirectVisualPlan(safeToolCalls, transcript, context);
+  const visualPlan = toolCalls.find((call) => call?.name === 'presentVisualExplanation')?.args;
+  const wordCount = String(result.text || '').trim().split(/\s+/).filter(Boolean).length;
+  const needsFullTour = isDirectVisualRequest(transcript) && visualPlan && wordCount < 45;
+  return { ...result, text: needsFullTour ? buildVisualTourText(visualPlan) : result.text, toolCalls };
 }

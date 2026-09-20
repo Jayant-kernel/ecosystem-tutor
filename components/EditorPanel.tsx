@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
+import type { TeachingRange } from './teachingTargets';
 
 interface EditorPanelProps {
   code: string;
@@ -7,6 +8,8 @@ interface EditorPanelProps {
   readOnly?: boolean;
   /** 1-based line numbers the tutor is currently talking about. */
   highlightLines?: number[];
+  /** Exact expression ranges the tutor named (a subset of highlightLines). */
+  highlightRanges?: TeachingRange[];
   onMountEditor?: (editor: any, monaco: any) => void;
 }
 
@@ -15,6 +18,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
   onCodeChange,
   readOnly = false,
   highlightLines = [],
+  highlightRanges = [],
   onMountEditor,
 }) => {
   const editorRef = useRef<any>(null);
@@ -37,7 +41,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
       (line) => Number.isFinite(line) && line > 0,
     );
 
-    const decorations = lines.map((line) => ({
+    const decorations: any[] = lines.map((line) => ({
       range: new monaco.Range(line, 1, line, 1),
       options: {
         isWholeLine: true,
@@ -46,6 +50,17 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
       },
     }));
 
+    // Exact expression ranges glow inline instead of washing the whole line.
+    // Only validated single-line ranges ever arrive here (see teachingTargets).
+    for (const range of highlightRanges || []) {
+      decorations.push({
+        range: new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
+        options: {
+          inlineClassName: 'tutor-range-highlight',
+        },
+      });
+    }
+
     // deltaDecorations is widely available but deprecated; guard so a future
     // Monaco upgrade degrades to "no highlight" instead of throwing.
     if (typeof editor.deltaDecorations === 'function') {
@@ -53,9 +68,16 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
     }
 
     if (lines.length) {
-      editor.revealLineInCenterIfOutsideViewport(Math.min(...lines));
+      const [range] = highlightRanges || [];
+      if (range) {
+        editor.revealRangeInCenterIfOutsideViewport(
+          new monaco.Range(range.startLine, range.startColumn, range.endLine, range.endColumn),
+        );
+      } else {
+        editor.revealLineInCenterIfOutsideViewport(Math.min(...lines));
+      }
     }
-  }, [highlightLines, code]);
+  }, [highlightLines, highlightRanges, code]);
 
   return (
     <div className="bg-[#1C1C1C] rounded-lg overflow-hidden h-full border border-[#262626] relative">

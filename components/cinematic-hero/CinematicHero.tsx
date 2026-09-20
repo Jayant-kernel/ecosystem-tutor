@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import Overlay from './Overlay';
-import CosmicScene from './cosmic/CosmicScene';
 import { TIMELINE } from './timeline';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { useScrollTimeline } from './useScrollTimeline';
@@ -20,6 +19,7 @@ interface CinematicHeroProps {
  */
 const CinematicHero: React.FC<CinematicHeroProps> = ({ navigateTo, screenContent }) => {
   const runwayRef = useRef<HTMLElement | null>(null);
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const [heroNear, setHeroNear] = useState(false);
   useScrollTimeline(runwayRef, reducedMotion);
@@ -48,15 +48,25 @@ const CinematicHero: React.FC<CinematicHeroProps> = ({ navigateTo, screenContent
     return (
       <section
         aria-label="Ecosystem intro"
-        className="relative flex min-h-screen items-center justify-center bg-black px-6 py-24 text-center"
+        className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 py-24 text-center"
       >
-        {/* Settled cosmic poster behind the static reduced-motion hero. */}
-        <CosmicScene />
-        <div className="relative z-10 max-w-3xl">
+        {/* Static deep-space backdrop for reduced motion: settled gradients
+            only, no canvas, no animation — same copy and CTA as before. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 45% at 50% 40%, rgba(30,41,82,0.5) 0%, transparent 65%),' +
+              'radial-gradient(ellipse 34% 24% at 50% 46%, rgba(249,115,22,0.10) 0%, transparent 70%),' +
+              'radial-gradient(ellipse 90% 70% at 50% 110%, rgba(10,16,36,0.8) 0%, transparent 70%)',
+          }}
+        />
+        <div className="relative max-w-3xl">
           <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
             Ecosystem
           </p>
-          <h1 className="quantum-hero-title mb-6 font-quantum text-3xl font-normal leading-[1.3] tracking-[0.055em] text-violet-50 md:text-5xl">
+          <h1 className="mb-6 font-manrope text-4xl font-medium text-white md:text-6xl">
             Learn to code with your voice.
           </h1>
           <p className="mb-8 text-lg text-zinc-400">
@@ -83,7 +93,7 @@ const CinematicHero: React.FC<CinematicHeroProps> = ({ navigateTo, screenContent
       style={{ height: `${TIMELINE.runwayViewportHeights * 100}vh` }}
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden bg-black">
-        <div className="absolute inset-0">
+        <div ref={canvasWrapRef} className="absolute inset-0">
           {heroNear ? (
             <Suspense
               fallback={
@@ -100,10 +110,7 @@ const CinematicHero: React.FC<CinematicHeroProps> = ({ navigateTo, screenContent
             </div>
           )}
         </div>
-        <Overlay navigateTo={navigateTo} />
-        {/* The DOM layer supplies the soft nebula, dust and twinkling while the
-            real Earth and asteroids stay inside the original R3F canvas. */}
-        <CosmicScene />
+        <Overlay navigateTo={navigateTo} canvasWrapRef={canvasWrapRef} />
       </div>
     </section>
   );

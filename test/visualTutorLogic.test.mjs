@@ -13,7 +13,11 @@ import { join } from 'node:path';
 const compile = (files) => {
   const dir = mkdtempSync(join(tmpdir(), 'visual-tutor-test-'));
   execSync(
-    `npx tsc ${files.map((f) => `components/visual-tutor/${f}`).join(' ')} ` +
+    // CI installs the root dev dependencies. Refuse npx's network fallback so
+    // an absent TypeScript compiler fails clearly instead of downloading the
+    // unrelated `tsc` package.
+    `${process.platform === 'win32' ? 'npx.cmd' : 'npx'} --no-install tsc ` +
+      `${files.map((f) => `components/visual-tutor/${f}`).join(' ')} ` +
       '--outDir ' + JSON.stringify(dir) + ' ' +
       '--module commonjs --moduleResolution node --target es2020 --skipLibCheck',
     { stdio: 'pipe' },

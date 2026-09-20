@@ -30,7 +30,8 @@ interface Speck {
 /**
  * Sparse atmospheric dust: a couple dozen tiny specks with varied blur and a
  * slow CSS twinkle. The center around the headline stays clean. Opacity is
- * driven from the master progress; twinkle is pure CSS.
+ * driven from the master progress; twinkle is pure CSS. Warm-neutral specks
+ * to match the landing's ember accents.
  */
 const DustLayer = forwardRef<DustLayerHandle>(function DustLayer(_, ref) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -51,7 +52,7 @@ const DustLayer = forwardRef<DustLayerHandle>(function DustLayer(_, ref) {
         left,
         top,
         size: bright ? 2 + rnd() * 1.5 : 1 + rnd() * 1.5,
-        color: bright ? '#ede9fe' : rnd() > 0.5 ? '#a78bfa' : '#7c3aed',
+        color: bright ? '#ffedd5' : rnd() > 0.5 ? '#e7e5e4' : '#fdba74',
         opacity: bright ? 0.5 + rnd() * 0.4 : 0.18 + rnd() * 0.3,
         duration: 3 + rnd() * 4,
         delay: rnd() * 6,

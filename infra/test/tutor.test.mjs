@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProvider, generateTutorResponse, buildSystemPrompt } from '../src/llm-bridge/tutor.mjs';
 import { normalizeHistory, selectTools, TOOLS, THEORY_TOOLS, toolResultText } from '../src/llm-bridge/tools.mjs';
-import { buildDirectVisualPlan, ensureDirectVisualPlan, sanitizeVisualToolCalls, validateVisualPlan } from '../src/llm-bridge/visual.mjs';
+import { buildDirectVisualPlan, buildVisualTourText, ensureDirectVisualPlan, sanitizeVisualToolCalls, validateVisualPlan } from '../src/llm-bridge/visual.mjs';
 import { buildIntro } from '../src/llm-bridge/index.mjs';
 
 test('createProvider defaults to openai and honours LLM_PROVIDER', () => {
@@ -119,13 +119,25 @@ test('system prompt carries the teaching playbook and its hard bans', () => {
 test('TOOLS exposes highlightLines with a spoken line range', () => {
   const tool = TOOLS.find((t) => t.name === 'highlightLines');
   assert.ok(tool);
-  assert.deepEqual(Object.keys(tool.parameters.properties).sort(), ['endLine', 'note', 'startLine']);
+  assert.deepEqual(Object.keys(tool.parameters.properties).sort(), ['endColumn', 'endLine', 'note', 'startColumn', 'startLine']);
   assert.deepEqual(tool.parameters.required, ['startLine', 'endLine']);
 });
 
 test('toolResultText describes highlighted lines', () => {
   assert.equal(toolResultText('highlightLines', { startLine: 3, endLine: 5 }), 'Lines 3-5 highlighted.');
+  assert.equal(toolResultText('highlightLines', { startLine: 2, endLine: 2, startColumn: 17, endColumn: 30 }), 'Lines 2-2 highlighted. (columns 17-30).');
   assert.equal(toolResultText('writeCode', {}), 'Code written to the learner editor.');
+});
+
+test('teaching mode instructs explain-this requests to point at small regions', () => {
+  const prompt = buildSystemPrompt({ lessonTitle: 'Functions', moduleTitle: 'Basics' });
+  assert.match(prompt, /TEACHING MODE/);
+  assert.match(prompt, /explain this function/);
+  assert.match(prompt, /startColumn\/endColumn/);
+  assert.match(prompt, /Never invent line numbers/);
+  assert.match(prompt, /better than a wrong one/);
+  assert.match(prompt, /1–4 steps/);
+  assert.match(prompt, /under ~12 words/);
 });
 
 test('buildSystemPrompt names the chapter module and the highlight workflow', () => {
@@ -293,6 +305,24 @@ test('a direct flowchart request always receives a valid lesson-derived visual p
   assert.equal(validateVisualPlan(calls[0].args), true);
   assert.deepEqual(ensureDirectVisualPlan(calls, 'Make me a flowchart', context), calls);
   assert.deepEqual(ensureDirectVisualPlan([], 'Explain the budget alert', context), []);
+});
+
+test('a direct flowchart gets one complete spoken tour when a provider reply is too short', async () => {
+  const provider = {
+    name: 'fake',
+    async generateTutorResponse() {
+      return { text: 'Here you go.', toolCalls: [] };
+    },
+  };
+  const result = await generateTutorResponse({
+    provider,
+    transcript: 'Make me a flowchart',
+    context: { lessonTitle: 'Cloud cost management', lessonFlows: 'Cost path: Budget -> Monitor -> Alert -> Optimize' },
+  });
+  assert.match(result.text, /whole picture from start to finish/i);
+  assert.match(result.text, /Would you like to explore any specific part\?/);
+  assert.equal(result.toolCalls[0].name, 'presentVisualExplanation');
+  assert.match(buildVisualTourText(result.toolCalls[0].args), /Follow the arrows/i);
 });
 
 test('a direct flowchart can map every chapter through the current lesson', () => {

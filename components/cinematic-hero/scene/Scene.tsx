@@ -8,7 +8,7 @@ import RiggedLaptop from './RiggedLaptop';
 import CosmicModels from './CosmicModels';
 import type { VoiceScreenContent } from './VoiceScreen';
 import { filmDriver } from '../filmDriver';
-import { TIMELINE } from '../timeline';
+import { PANEL_EXIT_START } from '../timeline';
 
 /**
  * Local studio reflections for the laptop's near-black PBR body.
@@ -55,24 +55,27 @@ function StudioEnvironment({ intensity = 0.5 }: { intensity?: number }): null {
   return null;
 }
 
-/** The laptop act exits after the DOM panel owns the frame; the canvas stays
- * mounted so its space act can take over without a white flash or a second
- * WebGL context. */
+/**
+ * Laptop act: studio set, backdrop copy, and rigged laptop. Hidden once the
+ * handoff panel starts exiting — the pop happens behind the still-opaque
+ * panel, so the canvas fade-back reveals only the space act. Backdrop text
+ * and floor ride with the laptop so neither floats in space afterward.
+ */
 function LaptopAct({ screenContent }: { screenContent?: VoiceScreenContent }): JSX.Element {
   const ref = useRef<THREE.Group | null>(null);
 
   useFrame(() => {
-    if (ref.current) ref.current.visible = filmDriver.currentT < TIMELINE.handoffEndT + 0.015;
+    if (ref.current) ref.current.visible = filmDriver.currentT < PANEL_EXIT_START;
   });
 
   return (
     <group ref={ref}>
+      {/* Backdrop copy, physically behind the laptop (occluded by the screen). */}
       <BackdropText />
       <RiggedLaptop content={screenContent} />
-      {/* Studio floor: grounds the laptop product shot ONLY. It rides with
-          the laptop act so that once the film hands off, the set floor exits
-          with it and can never occlude the space act (Earth horizon sits
-          below floor level by design). */}
+      {/* Grounding: an unlit near-black floor just beneath the base. Unlit on
+          purpose — studio lights are for the laptop only, so the floor keeps
+          an exact value and dissolves into the background via fog. */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.135, 0]}>
         <planeGeometry args={[40, 40]} />
         <meshBasicMaterial color="#0a0a0e" />
@@ -105,8 +108,9 @@ export default function Scene({ screenContent }: { screenContent?: VoiceScreenCo
       <directionalLight position={[-4, 4, -5]} intensity={2.2} color="#cfe0ff" />
       <CameraRig />
       <LaptopAct screenContent={screenContent} />
-      {/* Loads independently, so the real laptop can start before the two GLBs
-          have arrived. */}
+      {/* Space act: loads independently inside the same canvas, so the laptop
+          film starts immediately and GLBs arrive only if the journey gets
+          there. Shares the renderer, camera rig, and demand loop. */}
       <Suspense fallback={null}>
         <CosmicModels />
       </Suspense>

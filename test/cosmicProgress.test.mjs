@@ -6,14 +6,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /**
- * The cinematic progress mapping is TypeScript + ESM, while `npm test` runs
+ * The cosmic progress mapping is TypeScript + ESM, while `npm test` runs
  * plain node:test. Compile the two pure-logic modules to a temp dir with
  * tsc (already a devDependency) and test them as JavaScript.
  */
 const compile = (files) => {
   const dir = mkdtempSync(join(tmpdir(), 'cosmic-progress-test-'));
   execSync(
-    `npx tsc ${files.map((f) => `components/cinematic-hero/${f}`).join(' ')} ` +
+    // CI installs the root dev dependencies. Refuse npx's network fallback so
+    // an absent TypeScript compiler fails clearly instead of downloading the
+    // unrelated `tsc` package.
+    `${process.platform === 'win32' ? 'npx.cmd' : 'npx'} --no-install tsc ` +
+      `${files.map((f) => `components/cinematic-hero/${f}`).join(' ')} ` +
       '--outDir ' + JSON.stringify(dir) + ' ' +
       '--module commonjs --moduleResolution node --target es2020 --skipLibCheck',
     { stdio: 'pipe' },
@@ -26,49 +30,43 @@ const dir = compile(['cosmicProgress.ts', 'timeline.ts']);
 const progress = await import(
   'file:///' + join(dir, 'cosmicProgress.js').replace(/\\/g, '/')
 );
-const { SCATTER_START, SCATTER_END } = await import(
+const { COSMIC_REVEAL_START, COSMIC_REVEAL_END, cosmicProgress } = await import(
   'file:///' + join(dir, 'timeline.js').replace(/\\/g, '/')
 );
 
-const { cinematicProgress, violetGlow, nebulaLevel, planetLevel, rocksLevel, dustLevel, contrastLevel } = progress;
+const { emberGlow, nebulaLevel, rocksLevel, dustLevel, contrastLevel } = progress;
 
-test('master progress normalizes the scatter window to 0..1', () => {
-  assert.equal(cinematicProgress(0), 0);
-  assert.equal(cinematicProgress(SCATTER_START), 0);
-  assert.equal(cinematicProgress(SCATTER_END), 1);
-  assert.equal(cinematicProgress(1), 1);
-  const mid = cinematicProgress((SCATTER_START + SCATTER_END) / 2);
-  assert.ok(mid > 0.49 && mid < 0.51, `midpoint should be ~0.5, got ${mid}`);
+test('cosmic reveal window sits after the handoff lock', () => {
+  assert.ok(COSMIC_REVEAL_START >= 0.86, 'reveal must start after handoff assembly');
+  assert.equal(COSMIC_REVEAL_END, 1);
+  assert.equal(cosmicProgress(0), 0);
+  assert.equal(cosmicProgress(COSMIC_REVEAL_START), 0);
+  assert.equal(cosmicProgress(COSMIC_REVEAL_END), 1);
+  assert.equal(cosmicProgress(1), 1);
   // Monotonic across the whole film: reversibility depends on it.
   let prev = -1;
   for (let t = 0; t <= 1.0001; t += 0.01) {
-    const p = cinematicProgress(t);
+    const p = cosmicProgress(t);
     assert.ok(p >= prev, `not monotonic at t=${t}`);
     prev = p;
   }
 });
 
-test('scatter window matches the Overlay convergence window', () => {
-  assert.equal(SCATTER_START, 0.62);
-  assert.equal(SCATTER_END, 0.86);
-});
-
-test('violet glow whispers early and blooms by the halfway moment', () => {
-  assert.equal(violetGlow(0), 0);
-  assert.equal(violetGlow(1), 1);
-  assert.ok(violetGlow(0.25) <= 0.001, 'nothing before p=0.25');
-  const half = violetGlow(0.5);
+test('ember glow whispers early and blooms by the halfway moment', () => {
+  assert.equal(emberGlow(0), 0);
+  assert.equal(emberGlow(1), 1);
+  assert.ok(emberGlow(0.25) <= 0.001, 'nothing before p=0.25');
+  const half = emberGlow(0.5);
   assert.ok(half >= 0.15 && half <= 0.3, `halfway glow should be 15-25%, got ${half}`);
 });
 
 test('environment layers stage in storyboard order without gaps', () => {
-  for (const fn of [nebulaLevel, planetLevel, rocksLevel, dustLevel]) {
+  for (const fn of [nebulaLevel, rocksLevel, dustLevel]) {
     assert.equal(fn(0), 0);
     assert.equal(fn(1), 1);
   }
-  // Nebula leads, then planet, then rocks, then dust.
-  assert.ok(nebulaLevel(0.5) > planetLevel(0.5));
-  assert.ok(planetLevel(0.65) > rocksLevel(0.65));
+  // Nebula leads, then rocks, then dust.
+  assert.ok(nebulaLevel(0.5) > rocksLevel(0.5));
   assert.ok(rocksLevel(0.8) > dustLevel(0.8));
   // Nebula reaches ~35-50% intensity around p=0.6.
   const at60 = nebulaLevel(0.6);

@@ -15,6 +15,12 @@ export function cinematicProgress(filmT: number): number {
   return smoothstep(SCATTER_START, SCATTER_END, filmT);
 }
 
+// Compatibility hook for older cinematic atmosphere consumers. The visible
+// hero intentionally has no central glow, so this remains permanently off.
+export function emberGlow(_p: number): number {
+  return 0;
+}
+
 /** Fluid/nebula environment emergence (never a plain 0→1 fade of one image). */
 export function nebulaLevel(p: number): number {
   if (p <= 0.45) return 0;

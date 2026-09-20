@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from '../App';
-import { JAVASCRIPT_COURSE } from '../constants';
+import { CLOUD_BIG_DATA_COURSE } from '../constants';
 
 interface ExplanationsPageProps {
   navigateTo: (view: View) => void;
@@ -9,7 +9,7 @@ interface ExplanationsPageProps {
 const ExplanationsPage: React.FC<ExplanationsPageProps> = ({ navigateTo }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const allExplanations = JAVASCRIPT_COURSE.modules.flatMap(module => 
+  const allExplanations = CLOUD_BIG_DATA_COURSE.modules.flatMap(module => 
     module.lessons.flatMap(lesson => 
         lesson.content.explanations.map((text, index) => ({
             id: `${lesson.id}-expl-${index}`,
@@ -40,7 +40,7 @@ const ExplanationsPage: React.FC<ExplanationsPageProps> = ({ navigateTo }) => {
                 Course <span className="text-brand-green">Explanations</span>
             </h1>
             <p className="text-gray-400 text-lg">
-                A complete glossary of all concepts covered in the {JAVASCRIPT_COURSE.title} course.
+                A complete glossary of all concepts covered in the {CLOUD_BIG_DATA_COURSE.title} course.
             </p>
         </header>
 

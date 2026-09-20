@@ -4,6 +4,7 @@ import EditorPanel from './EditorPanel';
 import ConsolePanel from './ConsolePanel';
 import ExercisePanel from './ExercisePanel';
 import CodeTutorPointer from './CodeTutorPointer';
+import type { TeachingRange } from './teachingTargets';
 import { ConsoleOutput, Exercise, TestResult } from '../types';
 
 interface CodeWorkspaceProps {
@@ -16,10 +17,13 @@ interface CodeWorkspaceProps {
     onResetCode: () => void;
     /** Lines the tutor is currently explaining. */
     highlightLines?: number[];
+    /** Exact ranges the tutor is explaining (subset of highlightLines). */
+    highlightRanges?: TeachingRange[];
     onMountEditor?: (editor: any, monaco: any) => void;
     /** Bumped by the parent when the tutor runs code, so the console tab takes over. */
     consoleTabSignal?: number;
     tutorFocusLine?: number | null;
+    tutorFocusColumn?: number | null;
     tutorFocusLabel?: string;
 }
 
@@ -34,9 +38,11 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
     onRunCode,
     onResetCode,
     highlightLines,
+    highlightRanges,
     onMountEditor,
     consoleTabSignal = 0,
     tutorFocusLine = null,
+    tutorFocusColumn = null,
     tutorFocusLabel
 }) => {
     const [activeTab, setActiveTab] = useState<Tab>('console');
@@ -53,8 +59,8 @@ const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                 {/* Editor Header decoration */}
                 <div className="h-1 w-full bg-gradient-to-r from-orange-500/20 to-purple-500/20"></div>
                 <div className="flex-grow relative">
-                    <EditorPanel code={code} onCodeChange={onCodeChange} highlightLines={highlightLines} onMountEditor={(mountedEditor, monaco) => { setEditor(mountedEditor); onMountEditor?.(mountedEditor, monaco); }} />
-                    <CodeTutorPointer editor={editor} line={tutorFocusLine} label={tutorFocusLabel} />
+                    <EditorPanel code={code} onCodeChange={onCodeChange} highlightLines={highlightLines} highlightRanges={highlightRanges} onMountEditor={(mountedEditor, monaco) => { setEditor(mountedEditor); onMountEditor?.(mountedEditor, monaco); }} />
+                    <CodeTutorPointer editor={editor} line={tutorFocusLine} column={tutorFocusColumn} label={tutorFocusLabel} />
                 </div>
             </div>
 

@@ -22,6 +22,26 @@ const teachingCue = (label, detail) => {
 };
 
 /**
+ * A dependable spoken tour for direct flowchart requests. Providers normally
+ * supply their own natural explanation, but tool-only or overly short replies
+ * must never leave a learner staring at a diagram without the whole story.
+ */
+export function buildVisualTourText(plan) {
+  const nodes = Array.isArray(plan?.nodes) ? plan.nodes : [];
+  if (!nodes.length) return 'Let’s follow the full picture from start to finish. Would you like to explore any specific part?';
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+  const middle = nodes.slice(1, -1).map((node) => node.label).filter(Boolean);
+  const middleText = middle.length
+    ? `Then we move through ${middle.slice(0, 4).join(', ')}${middle.length > 4 ? ', and the remaining steps' : ''}, with each block preparing the next.`
+    : 'The arrows show how the first block leads directly to the result.';
+  return compact(
+    `Let’s follow the whole picture from start to finish. We begin with ${first.label}, where ${first.detail || 'the foundation is established'}. ${middleText} We end at ${last.label}, which shows the outcome of the full path. Follow the arrows from left to right to see the direction. Would you like to explore any specific part?`,
+    700,
+  );
+}
+
+/**
  * Produce a deterministic lesson/journey diagram only when a provider omitted
  * a required visual tool call. The learner's available path is preferred, so
  * this is a useful teaching canvas rather than an empty placeholder.

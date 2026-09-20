@@ -43,7 +43,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: infra/src/llm-bridge/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            infra/src/llm-bridge/package-lock.json
+
+      - name: Install application test dependencies
+        # The visual-tutor logic test compiles its small TypeScript-only
+        # modules with this project's pinned TypeScript version.
+        run: npm ci
 
       - name: Install Lambda dependencies
         working-directory: infra/src/llm-bridge
@@ -169,7 +176,7 @@ jobs:
               SarvamTtsLanguageCode=en-IN \
               SarvamTtsOutputAudioCodec=mp3 \
               SarvamTtsSampleRate=24000 \
-              SarvamTtsPace=0.98 \
+              SarvamTtsPace=0.88 \
               SarvamTtsTemperature=0.6 \
               GeminiApiKey="${GEMINI_API_KEY:?GEMINI_API_KEY secret is not set}" \
               GroqApiKey="${GROQ_API_KEY:?GROQ_API_KEY secret is not set}" \
@@ -181,6 +188,6 @@ jobs:
               GroqReasoningEffort=low \
               TtsModelId=eleven_turbo_v2_5 \
               TtsOutputFormat=mp3_44100_64 \
-              TtsSpeed=0.98 \
+              TtsSpeed=0.88 \
               TtsStability=0.3 \
               TtsStyle=0.45

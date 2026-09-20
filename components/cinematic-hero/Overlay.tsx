@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef, type RefObject } from 'react';
 import { filmDriver } from './filmDriver';
 import { sampleTimeline, smoothstep, SCATTER_START, SCATTER_END, TIMELINE } from './timeline';
 
@@ -13,6 +13,8 @@ const HANDOFF_END = TIMELINE.handoffEndT;
 
 interface OverlayProps {
   navigateTo: (view: 'courses') => void;
+  /** Kept optional for the cinematic shell's canvas handoff API. */
+  canvasWrapRef?: RefObject<HTMLDivElement | null>;
 }
 
 function setFade(

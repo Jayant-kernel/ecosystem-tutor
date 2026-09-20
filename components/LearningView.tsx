@@ -2,6 +2,9 @@
 import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion';
 import { Course, Lesson, Transcript, ConsoleOutput, TestResult, TutorToolCall, TutorToolResponse } from '../types';
+import { resolveTeachingTarget, walkLinesForTarget, labelForWalk, createTeachingSteps, MAX_TEACHING_WALK_LINES } from './teachingTargets';
+import type { TeachingStep } from './teachingTargets';
+import TeachingPanel from './TeachingPanel';
 import RoadmapSidebar from './RoadmapSidebar';
 import { useCourseProgress } from '../hooks/useCourseProgress';
 import { useVoiceTutor } from '../hooks/useVoiceTutor';
@@ -274,16 +277,21 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
     // `highlightCode` tool keeps working while `highlightLines` drives the editor.
     const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
     const [tutorFocusLine, setTutorFocusLine] = useState<number | null>(null);
+    const [tutorFocusColumn, setTutorFocusColumn] = useState<number | null>(null);
+    const [tutorFocusLabel, setTutorFocusLabel] = useState<string | null>(null);
+    const [teachingRanges, setTeachingRanges] = useState<import('./teachingTargets').TeachingRange[]>([]);
     const highlightTimersRef = useRef<number[]>([]);
 
     const clearHighlightTimers = useCallback(() => {
         highlightTimersRef.current.forEach((id) => window.clearTimeout(id));
         highlightTimersRef.current = [];
         setTutorFocusLine(null);
+        setTutorFocusColumn(null);
+        setTutorFocusLabel(null);
     }, []);
 
     /** Move the teaching hand through each requested line while the active line glows. */
-    const applyHighlightLines = useCallback((lines: number[], delayMs: number) => {
+    const applyHighlightLines = useCallback((lines: number[], delayMs: number, opts?: { column?: number | null; label?: string | null }) => {
         const ordered = [...new Set(lines.map((line) => Math.floor(Number(line))).filter((line) => line > 0))].slice(0, 24);
         if (!ordered.length) return;
         const show = window.setTimeout(() => {
@@ -291,24 +299,91 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
                 const step = window.setTimeout(() => {
                     setHighlightedLines([line]);
                     setTutorFocusLine(line);
+                    setTutorFocusColumn(opts?.column ?? null);
+                    setTutorFocusLabel(opts?.label ?? null);
                 }, index * 1750);
                 highlightTimersRef.current.push(step);
             });
             const clear = window.setTimeout(() => {
                 setHighlightedLines([]);
                 setTutorFocusLine(null);
+                setTutorFocusColumn(null);
+                setTutorFocusLabel(null);
+                setTeachingRanges([]);
             }, ordered.length * 1750 + 900);
             highlightTimersRef.current.push(clear);
         }, delayMs);
         highlightTimersRef.current.push(show);
     }, []);
 
+    // --- Interactive teaching sessions (Phase 3) --------------------------------
+    // Built on the Phase 2 semantic targets: a turn's highlightLines calls
+    // become navigable steps, and the current step is the single source of
+    // truth for pointer + highlight. Local state only — a session lives and
+    // dies with the interaction, never persisted.
+    const [teachingSession, setTeachingSession] = useState<{ steps: TeachingStep[]; current: number } | null>(null);
+
+    /** Display exactly one step: previous teaching visuals are replaced, never stacked. */
+    const showTeachingStep = useCallback((steps: TeachingStep[], index: number) => {
+        const step = steps[index];
+        if (!step) return;
+        clearHighlightTimers();
+        const lines: number[] = [];
+        for (let line = step.startLine; line <= step.endLine && lines.length < MAX_TEACHING_WALK_LINES; line++) {
+            lines.push(line);
+        }
+        setHighlightedLines(lines);
+        setTutorFocusLine(lines[0] ?? null);
+        setTutorFocusColumn(step.column);
+        setTutorFocusLabel(step.label);
+        setTeachingRanges(step.range ? [step.range] : []);
+        setTeachingSession({ steps, current: index });
+    }, [clearHighlightTimers]);
+
+    /** Leave teaching mode: visuals and state go away, code is untouched. */
+    const closeTeachingSession = useCallback(() => {
+        clearHighlightTimers();
+        setHighlightedLines([]);
+        setTeachingRanges([]);
+        setTeachingSession(null);
+    }, [clearHighlightTimers]);
+
+    const goTeachingStep = useCallback((delta: number) => {
+        if (!teachingSession) return;
+        const next = Math.min(teachingSession.steps.length - 1, Math.max(0, teachingSession.current + delta));
+        if (next === teachingSession.current) return;
+        showTeachingStep(teachingSession.steps, next);
+    }, [teachingSession, showTeachingStep]);
+
+    /** Re-present the current step (pointer + highlight + label + reveal). No audio replay. */
+    const replayTeachingStep = useCallback(() => {
+        if (!teachingSession) return;
+        showTeachingStep(teachingSession.steps, teachingSession.current);
+    }, [teachingSession, showTeachingStep]);
+
+    /** Editor-model surface for validating teaching targets, with a code-string fallback. */
+    const getTeachingCodeInfo = useCallback(() => {
+        const codeText: string = editorCodeRef.current || '';
+        const codeLines = codeText.split('\n');
+        let liveModel: any = null;
+        try { liveModel = editorApiRef.current?.editor?.getModel?.() || null; } catch { liveModel = null; }
+        return {
+            lineCount: (() => { try { return liveModel?.getLineCount?.() ?? codeLines.length; } catch { return codeLines.length; } })(),
+            lineLength: (line: number) => {
+                try { if (liveModel?.getLineLength) return liveModel.getLineLength(line); } catch { /* fall through */ }
+                return codeLines[line - 1]?.length ?? 0;
+            },
+        };
+    }, []);
+
     // A new lesson starts with a clean editor.
     useEffect(() => {
         clearHighlightTimers();
+        closeTeachingSession();
         setHighlightedLines([]);
+        setTeachingRanges([]);
         return clearHighlightTimers;
-    }, [currentLesson?.id, clearHighlightTimers]);
+    }, [currentLesson?.id, clearHighlightTimers, closeTeachingSession]);
 
     const handleRunTests = useCallback((): TestResult[] => {
         if (!currentLesson || !currentLesson.content.exercises || currentLesson.content.exercises.length === 0) {
@@ -325,9 +400,14 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
     const exercises = useMemo(() => currentLesson?.content.exercises ?? [], [currentLesson]);
     const handleCodeChange = useCallback((val?: string) => {
         setEditorCode(val || '');
-        // Manual edits invalidate any tutor highlight (programmatic typing is guarded by isTypingRef).
-        if (!isTypingRef.current) clearHighlight();
-    }, [clearHighlight]);
+        // Manual edits invalidate any tutor highlight (programmatic typing is
+        // guarded by isTypingRef) — and any teaching session built on the old
+        // lines, whose targets would now resolve stale.
+        if (!isTypingRef.current) {
+            clearHighlight();
+            closeTeachingSession();
+        }
+    }, [clearHighlight, closeTeachingSession]);
     const handleBackToCourses = useCallback(() => navigateTo('courses'), [navigateTo]);
 
     const [showXPModal, setShowXPModal] = useState(false);
@@ -373,6 +453,10 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
     const handleToolCall = useCallback(async (functionCalls: TutorToolCall[]): Promise<TutorToolResponse[]> => {
         const responses: TutorToolResponse[] = [];
         let highlightStep = 0;
+        // Stagger sequential teaching targets within one turn so the hand
+        // finishes each region before moving to the next (1750ms per walked
+        // line plus a beat to let the explanation land).
+        let teachingDelayMs = 0;
         // writeCode first: fresh code invalidates any old highlight. Only wait
         // for typing to finish when later calls in the same batch need the
         // final code (e.g. executeCode); otherwise keep audio latency low.
@@ -389,8 +473,10 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
         if (writeCall) {
             const code = (writeCall.args?.code as string) || '';
             clearHighlight();
+            closeTeachingSession();
             clearHighlightTimers();
             setHighlightedLines([]);
+            setTeachingRanges([]);
             pendingHighlightRef.current = null;
             setEditorCode('');
             if (needsSettledCode) {
@@ -400,8 +486,45 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
             }
             responses.push({ id: writeCall.id, name: writeCall.name, response: { result: "Code written successfully." } });
         }
+        // A turn's highlightLines calls become an interactive teaching session —
+        // unless the turn also writes code, in which case the legacy staggered
+        // chunk walk below keeps normal demo mode normal. Invalid targets
+        // resolve to plain explanations (responses below), never to a pointer.
+        const claimedTeachingCalls = new Set<TutorToolCall>();
+        if (!writeCall) {
+            const candidates = functionCalls.filter((fc) => fc.name === 'highlightLines');
+            if (candidates.length) {
+                const codeInfo = getTeachingCodeInfo();
+                const resolvedList = candidates.map((fc) => ({ fc, target: resolveTeachingTarget(fc.args, codeInfo) }));
+                for (const { fc } of resolvedList.filter((r) => r.target.kind === 'invalid')) {
+                    claimedTeachingCalls.add(fc);
+                    responses.push({ id: fc.id, name: fc.name, response: { result: 'Target outside the editor; explaining without a highlight.' } });
+                }
+                const steps = createTeachingSteps(resolvedList.map((r) => r.target));
+                if (steps.length) {
+                    clearHighlight();
+                    showTeachingStep(steps, 0);
+                    let claimed = 0;
+                    for (const { fc, target } of resolvedList) {
+                        if (target.kind === 'invalid') continue;
+                        const step = steps[claimed];
+                        claimed += 1;
+                        claimedTeachingCalls.add(fc);
+                        responses.push({
+                            id: fc.id,
+                            name: fc.name,
+                            response: {
+                                result: step.range
+                                    ? `Line ${step.startLine} highlighted (columns ${step.range.startColumn}-${step.range.endColumn}).`
+                                    : `Lines ${step.startLine}-${step.endLine} highlighted.`,
+                            },
+                        });
+                    }
+                }
+            }
+        }
         for (const fc of functionCalls) {
-            if (fc.name === 'writeCode') continue;
+            if (fc.name === 'writeCode' || claimedTeachingCalls.has(fc)) continue;
             switch (fc.name) {
                 case 'highlightCode': {
                     const raw = fc.args?.lines;
@@ -417,12 +540,29 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
                     break;
                 }
                 case 'highlightLines': {
-                    const s = Number(fc.args?.startLine) || 1;
-                    const e = Number(fc.args?.endLine) || s;
-                    const lo = Math.min(s, e), hi = Math.max(s, e);
+                    // Legacy demo walk (turns that also write code): same
+                    // validation as teaching targets, staggered as before.
+                    const resolved = resolveTeachingTarget(fc.args, getTeachingCodeInfo());
+                    if (resolved.kind === 'invalid') {
+                        responses.push({ id: fc.id, name: fc.name, response: { result: 'Target outside the editor; explaining without a highlight.' } });
+                        break;
+                    }
+                    const walk = walkLinesForTarget(resolved);
+                    const label = labelForWalk(walk, resolved.label);
+                    const column = resolved.kind === 'range' ? resolved.range.startColumn : null;
                     clearHighlight();
-                    applyHighlightLines(Array.from({ length: Math.min(hi - lo + 1, 24) }, (_, index) => lo + index), 0);
-                    responses.push({ id: fc.id, name: fc.name, response: { result: `Lines ${lo}-${hi} highlighted.` } });
+                    setTeachingRanges(resolved.kind === 'range' ? [resolved.range] : []);
+                    applyHighlightLines(walk, teachingDelayMs, { column, label });
+                    teachingDelayMs += walk.length * 1750 + 1000;
+                    responses.push({
+                        id: fc.id,
+                        name: fc.name,
+                        response: {
+                            result: resolved.kind === 'range'
+                                ? `Line ${resolved.range.startLine} highlighted (columns ${resolved.range.startColumn}-${resolved.range.endColumn}).`
+                                : `Lines ${walk[0]}-${walk[walk.length - 1]} highlighted.`,
+                        },
+                    });
                     break;
                 }
                 case 'executeCode':
@@ -498,7 +638,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
             }
         }
         return responses;
-    }, [applyHighlight, applyHighlightLines, clearHighlight, clearHighlightTimers, course, currentLesson, handleRunCode, handleResetCode, handleCompleteLesson, visualPlan, visualScene.activeStep]);
+    }, [applyHighlight, applyHighlightLines, clearHighlight, clearHighlightTimers, closeTeachingSession, course, getTeachingCodeInfo, showTeachingStep, currentLesson, handleRunCode, handleResetCode, handleCompleteLesson, visualPlan, visualScene.activeStep]);
 
     const onStreamMessage = useCallback((newTranscript: Transcript) => {
         latestLearnerRequestRef.current = newTranscript.user || '';
@@ -652,7 +792,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
     const reduceMotion = useReducedMotion();
     const rightPaneRef = useRef<HTMLDivElement | null>(null);
     const codeLayerRef = useRef<HTMLDivElement | null>(null);
-    const transition = { duration: reduceMotion ? 0 : 1.45, times: [0, 0.2, 0.66, 1], ease: 'easeInOut' as const };
+    const transition = { duration: reduceMotion ? 0 : 3.5, times: [0, 0.2, 0.66, 1], ease: 'easeInOut' as const };
     useEffect(() => {
         const el = codeLayerRef.current as (HTMLDivElement & { inert?: boolean }) | null;
         if (el) el.inert = showVisual;
@@ -778,7 +918,7 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
                                     aria-hidden={showVisual || undefined}
                                 >
                                     <div className={`workspace-card workspace-card--code${showVisual ? ' is-shuffling-out' : ''}`}>
-                                        <CodeWorkspace code={editorCode} onCodeChange={handleCodeChange} output={consoleOutput} exercises={exercises} onRunTests={handleRunTests} onRunCode={handleRunCode} onResetCode={handleResetCode} highlightLines={highlightedLines} onMountEditor={handleMountEditor} consoleTabSignal={consoleTabSignal} tutorFocusLine={tutorFocusLine} tutorFocusLabel={tutorFocusLine ? `Explaining line ${tutorFocusLine}` : undefined} />
+                                        <CodeWorkspace code={editorCode} onCodeChange={handleCodeChange} output={consoleOutput} exercises={exercises} onRunTests={handleRunTests} onRunCode={handleRunCode} onResetCode={handleResetCode} highlightLines={highlightedLines} highlightRanges={teachingRanges} onMountEditor={handleMountEditor} consoleTabSignal={consoleTabSignal} tutorFocusLine={tutorFocusLine} tutorFocusColumn={tutorFocusColumn} tutorFocusLabel={tutorFocusLabel ?? (tutorFocusLine ? `Explaining line ${tutorFocusLine}` : undefined)} />
                                     </div>
                                 </motion.div>
                             </>}
@@ -802,6 +942,22 @@ const LearningView: React.FC<LearningViewProps> = ({ course, navigateTo }) => { 
                                 )}
                             </AnimatePresence>
                             {visualOffer && <div className="absolute inset-x-3 bottom-3 z-30"><VisualOfferCard topic={visualOffer.topic} reason={visualOffer.reason} onAccept={acceptVisualOffer} onDismiss={() => setVisualOffer(null)} /></div>}
+                            {teachingSession && !showVisual && (
+                                <div className="absolute bottom-3 right-3 z-30">
+                                    <TeachingPanel
+                                        step={teachingSession.current}
+                                        total={teachingSession.steps.length}
+                                        label={teachingSession.steps[teachingSession.current]?.label ?? ''}
+                                        onPrev={() => goTeachingStep(-1)}
+                                        onNext={() => {
+                                            if (teachingSession.current >= teachingSession.steps.length - 1) closeTeachingSession();
+                                            else goTeachingStep(1);
+                                        }}
+                                        onReplay={replayTeachingStep}
+                                        onClose={closeTeachingSession}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

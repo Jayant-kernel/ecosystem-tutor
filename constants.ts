@@ -1,44 +1,19 @@
 
-import { Course, Progress, RawCurriculumDatabase } from './types';
-import { rawCurriculumData } from './javascriptCurriculum';
+import { Course, Progress } from './types';
 import { CLOUD_BIG_DATA_COURSE } from './cloudBigDataCurriculum';
+import { DYNAMIC_CLOUD_COURSE } from './dynamicCourseCurriculum';
 
-// Cast and map the raw JSON to our internal Course interface if necessary
-const rawDb = rawCurriculumData as RawCurriculumDatabase;
+// Re-export both courses so the rest of the app can treat every course
+// uniformly. The stable core course and its continuously-updated dynamic
+// counterpart stay independent: separate IDs, separate progress.
+export { CLOUD_BIG_DATA_COURSE, DYNAMIC_CLOUD_COURSE };
 
-export const JAVASCRIPT_COURSE: Course = {
-  id: rawDb.course.id,
-  title: "JavaScript Mastery", // Mapping 'name' from JSON to 'title' for UI consistency
-  description: "Start from scratch and build real-world apps. Master the modern web's most popular language with your AI Tutor.",
-  level: "Beginner to Intermediate",
-  totalDuration: "4 Weeks (Estimated)",
-  outcomes: [
-    "Build interactive websites with modern DOM manipulation",
-    "Master asynchronous programming (Promises, Async/Await)",
-    "Understand closures, scope, and execution context",
-    "Debug complex issues with Chrome DevTools and AI",
-    "Write clean, modular, and ES6+ modern JavaScript",
-    "Create a final project: A dynamic Task Management App"
-  ],
-  prerequisites: [
-    "No prior coding experience required",
-    "A computer with internet access",
-    "Basic understanding of how to use a web browser"
-  ],
-  // Keep only the first 3 modules for a focused learning experience
-  modules: rawDb.course.modules.slice(0, 3)
-};
+export const COURSES: Course[] = [CLOUD_BIG_DATA_COURSE, DYNAMIC_CLOUD_COURSE];
 
-// Re-export the Cloud & Big Data Engineering course so the rest of the app
-// can treat every course uniformly.
-export { CLOUD_BIG_DATA_COURSE };
-
-export const COURSES: Course[] = [JAVASCRIPT_COURSE, CLOUD_BIG_DATA_COURSE];
-
-export const DEFAULT_COURSE_ID = JAVASCRIPT_COURSE.id;
+export const DEFAULT_COURSE_ID = CLOUD_BIG_DATA_COURSE.id;
 
 export const getCourseById = (courseId: string | undefined): Course =>
-  COURSES.find((course) => course.id === courseId) ?? JAVASCRIPT_COURSE;
+  COURSES.find((course) => course.id === courseId) ?? CLOUD_BIG_DATA_COURSE;
 
 /**
  * Courses that can be opened without signing in.
@@ -57,4 +32,4 @@ export const getInitialProgress = (course: Course): Progress => ({
   aiMemory: ['User is a complete beginner.'],
 });
 
-export const INITIAL_PROGRESS: Progress = getInitialProgress(JAVASCRIPT_COURSE);
+export const INITIAL_PROGRESS: Progress = getInitialProgress(CLOUD_BIG_DATA_COURSE);
